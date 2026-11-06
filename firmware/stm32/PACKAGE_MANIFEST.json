@@ -1,0 +1,417 @@
+{
+  "package": "stm32_vehicle_control_f429_v2",
+  "revision": "relock_oled_keyok_modeselect_r1fix_20261104",
+  "date": "2026-11-04",
+  "target": "NUCLEO-F429ZI",
+  "source_zip_sha256": "3a96715a4bddd5aa29afce5fb99002308b3e24f6c740a9822d9ad915a9d439b4 (1103 판, 곽동규 검토 대상)",
+  "host_test_configurations_passed": 19,
+  "current_revision_arm_build_tested": true,
+  "current_revision_hardware_tested": false,
+  "files": [
+    {
+      "path": "Core/Inc/board.h",
+      "size_bytes": 1153,
+      "sha256": "91340fe9bed760e01ea387244fbc51d8b3fb5a3c49244bc06854798944df1283"
+    },
+    {
+      "path": "Core/Inc/config.h",
+      "size_bytes": 3361,
+      "sha256": "4dc506648cccfe96ae5f3b9153100dc756b1e9177438a53b6b474d7389c402b4"
+    },
+    {
+      "path": "Core/Inc/control.h",
+      "size_bytes": 2018,
+      "sha256": "60dfa2272726d209fa1ec4c862f046b8e2c2e456a18d0dbca57a74b04ffc2ad4"
+    },
+    {
+      "path": "Core/Inc/line_reader.h",
+      "size_bytes": 445,
+      "sha256": "006834117729972f1173c19bff707be5c4bcaa587234aed1ec9fe42cb91e440f"
+    },
+    {
+      "path": "Core/Inc/peripherals.h",
+      "size_bytes": 554,
+      "sha256": "e3280caae3359c266145fec8be399327b4ed27ae034c0a1104fbe918953d0704"
+    },
+    {
+      "path": "Core/Inc/pwm_clock.h",
+      "size_bytes": 1026,
+      "sha256": "c76b37e0bbece6efe6e7cd0a018d753de6a975ff3ec1c8fd74cae639efd11e92"
+    },
+    {
+      "path": "Core/Inc/sharekey.h",
+      "size_bytes": 2279,
+      "sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410"
+    },
+    {
+      "path": "Core/Inc/sk_crypto.h",
+      "size_bytes": 568,
+      "sha256": "4d57f322e297261f12e640fcbc83fd9f28c2d11243854f67d6e4c08316bbf4ef"
+    },
+    {
+      "path": "Core/Inc/vehicle_app.h",
+      "size_bytes": 844,
+      "sha256": "0d2b413c9ddf2eefe053ec2574be9cb5165f4e7c95c8bea853c615a21dc4ddc7"
+    },
+    {
+      "path": "Core/Inc/vehicle_platform.h",
+      "size_bytes": 1309,
+      "sha256": "501014d87514f47b14e2f0f94502832e29ebaabc7d486cf13b8dda5508185082"
+    },
+    {
+      "path": "Core/Src/board.c",
+      "size_bytes": 9316,
+      "sha256": "c1ee300e9e56c16ea9f2ec08f5f86976b535c3249dcba21d9783a656ac097b41"
+    },
+    {
+      "path": "Core/Src/control.c",
+      "size_bytes": 8998,
+      "sha256": "da56c6252e479960fae712e1d2e8dcbaf8960f48b68095b5e0be6b416a7e70ab"
+    },
+    {
+      "path": "Core/Src/line_reader.c",
+      "size_bytes": 878,
+      "sha256": "39bb38fb7586cc94dcdcec029093f908248cabe700cf95fb635fd58fcaa782ee"
+    },
+    {
+      "path": "Core/Src/oled.c",
+      "size_bytes": 6735,
+      "sha256": "109e61c00a99f54d1fd3f4c6f993f7531c4c56221de829c5788db0c73e62e72b"
+    },
+    {
+      "path": "Core/Src/port_stm32.c",
+      "size_bytes": 6567,
+      "sha256": "b5999b1d752b40450f731f3e1296cb815f2d0222146cafc63d17c5eeae711f2a"
+    },
+    {
+      "path": "Core/Src/pwm_clock.c",
+      "size_bytes": 2339,
+      "sha256": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01"
+    },
+    {
+      "path": "Core/Src/rtc.c",
+      "size_bytes": 2594,
+      "sha256": "ed89986292d81c58ced41be43bc20e5491cb1b8680453d6c2df4789492409a73"
+    },
+    {
+      "path": "Core/Src/sharekey.c",
+      "size_bytes": 12201,
+      "sha256": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b"
+    },
+    {
+      "path": "Core/Src/sk_crypto.c",
+      "size_bytes": 3814,
+      "sha256": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206"
+    },
+    {
+      "path": "Core/Src/vehicle_app.c",
+      "size_bytes": 15379,
+      "sha256": "34f5841fc6e80922f75e426dfd066312370691acd3c6c1c6aa3ece2533e1129d"
+    },
+    {
+      "path": "README_KO.md",
+      "size_bytes": 7766,
+      "sha256": "dcd0af728fba352ee41c30b519b66992e8d0e7988115a697c5e74f616bdd6e98"
+    },
+    {
+      "path": "build_support/ARM_BUILD_RESULTS.json",
+      "size_bytes": 6856,
+      "sha256": "63f3a3ede698a45d80b9f2d2f9a6d681272e63b7271bd5b969bed6eb9ef99f7a"
+    },
+    {
+      "path": "build_support/ARM_BUILD_RESULTS_1103.json",
+      "size_bytes": 1749,
+      "sha256": "6e47578c86c6f07a186313b2f118b943cb6632f7c4b2769ac406109975c85de8"
+    },
+    {
+      "path": "build_support/ARM_BUILD_RESULTS_1104.json",
+      "size_bytes": 2308,
+      "sha256": "c5c87deb4ab1d05a24603c45ed402972a3d577c070f42e064655c0704802ffad"
+    },
+    {
+      "path": "build_support/README_KO.md",
+      "size_bytes": 3062,
+      "sha256": "62a76b51c6c122ced62361fcfb5cdb82d6c4db7fa67cdd2eac11f1e841161963"
+    },
+    {
+      "path": "build_support/dependencies.json",
+      "size_bytes": 813,
+      "sha256": "80f489628f145394a1ece93e48a416a46717f52e82bce2da9e668c8cab3c1aaa"
+    },
+    {
+      "path": "build_support/main.h",
+      "size_bytes": 341,
+      "sha256": "0f4b2d0a7a235ae4ec163693489655a620d202f8c6a4b4af7338b13e0244e72b"
+    },
+    {
+      "path": "build_support/main_f429.c",
+      "size_bytes": 2844,
+      "sha256": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555"
+    },
+    {
+      "path": "build_support/stm32f429zi.ld",
+      "size_bytes": 2366,
+      "sha256": "41902a34c69dfa638b19a4592fb1cbe6fde505db7fe6cff5a8a38ec7c5a35e32"
+    },
+    {
+      "path": "build_support/stm32f4xx_hal_conf.h",
+      "size_bytes": 1607,
+      "sha256": "cbb81d11b5650fad752edd3a35c1d7c3020776b0eec1a3e0598d305d01c5b41c"
+    },
+    {
+      "path": "build_support/syscalls.c",
+      "size_bytes": 1563,
+      "sha256": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+    },
+    {
+      "path": "docs/01_gwak_relock_20261102.md",
+      "size_bytes": 13684,
+      "sha256": "69e2bbd4c8a073744211b9e7953ae032b5a57b34428990fa53828e724d0b9609"
+    },
+    {
+      "path": "docs/HOST_TEST_RESULTS.json",
+      "size_bytes": 2143,
+      "sha256": "f3b091a66de7f97121bf741c1b20789c42fe357e2c820b330e3f453c94617a92"
+    },
+    {
+      "path": "docs/INPUT_SOURCES.json",
+      "size_bytes": 554,
+      "sha256": "b7614fd0fa9343da92a449fbf9ee44de6a6f90d3d26ea85f1fc4fe9ad3f293e5"
+    },
+    {
+      "path": "docs/INSTALLER_TEST_RESULTS.txt",
+      "size_bytes": 2239,
+      "sha256": "341a9e3a68ffd54370e99415936ab5a2ee6670cd5b3643b8d5c9d91d99f388d3"
+    },
+    {
+      "path": "docs/INTEGRATE_CUBEIDE_KO.md",
+      "size_bytes": 5199,
+      "sha256": "16f47bf875efc3bcb9860dcb47361d6fc8718e280540fed7ea3609e133c62925"
+    },
+    {
+      "path": "docs/KEYOK_1103.patch",
+      "size_bytes": 14787,
+      "sha256": "755f22319423928da277eef03af2518961c227a4c36530a05776d4b791c930f8"
+    },
+    {
+      "path": "docs/KEYOK_1103_KO.md",
+      "size_bytes": 4646,
+      "sha256": "4037e0313ec5b33add32edbc7416c589417ac143776e486718e2b66209f9e89a"
+    },
+    {
+      "path": "docs/R1_1104.patch",
+      "size_bytes": 8090,
+      "sha256": "13384dc764b1099c823ed57080179fde30d5e8d69efc69b6782a11e1e43d8cbe"
+    },
+    {
+      "path": "docs/RELOCK_1102.patch",
+      "size_bytes": 9834,
+      "sha256": "6188680688cd3e2283dece4600747a1b1a6854aceddaaa239fc9d072f7e88e70"
+    },
+    {
+      "path": "docs/RELOCK_1102_KO.md",
+      "size_bytes": 11099,
+      "sha256": "32fa9f26207bb01883a55e056f010d2a0d8144d7bce685378e0f61e7ea4860be"
+    },
+    {
+      "path": "docs/VALIDATION_KO.md",
+      "size_bytes": 3139,
+      "sha256": "f06c3a418ff5d820c65f2627ef7aa0a41b02564f76a961ac4ba9ec735005101e"
+    },
+    {
+      "path": "docs/WIRING_AND_TEST_KO.md",
+      "size_bytes": 4584,
+      "sha256": "5ba3d6c18befa4ff718d731fbfa0b821f26e1c223f3b8b519a22951a295d5517"
+    },
+    {
+      "path": "docs/WORKLOG_20261028.md",
+      "size_bytes": 6780,
+      "sha256": "bdbd679be70397cd0441cef3f9d0a9c506ee1bac766abe84252d79ba26496332"
+    },
+    {
+      "path": "docs/host_1102/app_a.log",
+      "size_bytes": 1329,
+      "sha256": "c663c840e35313e248a67430b90cfa61b5c3968c3c594c2a6883b7ac38802e45"
+    },
+    {
+      "path": "docs/host_1102/app_a_endpoints.log",
+      "size_bytes": 1532,
+      "sha256": "df1baa6833239541f004e57cf4f2357b72ddc60386c4611d6b45601f8cdc21f5"
+    },
+    {
+      "path": "docs/host_1102/app_a_relock_off.log",
+      "size_bytes": 1329,
+      "sha256": "2fc382825e78dd8384c8fde10d0316390a05c331d30f1242743a006844636db4"
+    },
+    {
+      "path": "docs/host_1102/app_c.log",
+      "size_bytes": 1117,
+      "sha256": "3c8c7d8f2389d04bd7da0e13894304162039940d07c4c78387924c8ed01d8197"
+    },
+    {
+      "path": "docs/host_1102/app_c_endpoints.log",
+      "size_bytes": 1320,
+      "sha256": "0aefba3b2f7adfbe3985ca66da846f3fe0a7b67a58add4a62657de764c8a0952"
+    },
+    {
+      "path": "docs/host_1102/app_c_motor.log",
+      "size_bytes": 1117,
+      "sha256": "f3535e60b74dd56bd82c6edca1f7142600057cce9bc6073792f5cc30dde7641e"
+    },
+    {
+      "path": "docs/host_1102/app_c_relock_off.log",
+      "size_bytes": 1117,
+      "sha256": "990b847538837ed776f255549b23eedcee3b1ec961111c69aba7789c4bb5754d"
+    },
+    {
+      "path": "docs/host_1102/auth_vectors.log",
+      "size_bytes": 1036,
+      "sha256": "077e50177104b3133abb257124d626ebbd24efed04bd57ba78401c7149ba846b"
+    },
+    {
+      "path": "docs/host_1102/control_endpoints.log",
+      "size_bytes": 383,
+      "sha256": "9791665b265d5b567b22b4d6d8b9cdb488ebc15b03f768c76e4f9621eca07c73"
+    },
+    {
+      "path": "docs/host_1102/control_no_endpoints.log",
+      "size_bytes": 180,
+      "sha256": "2d653df3dfe3948507cfdfb2aa5e14e15a8257f742b4af73113af014c6063a14"
+    },
+    {
+      "path": "docs/host_1102/line_reader.log",
+      "size_bytes": 162,
+      "sha256": "0bf2b4dd920746fb8bafe2f6f6b7a5b9c9497123b20cfeaf78bb5abf382c0fca"
+    },
+    {
+      "path": "docs/host_1102/oled_large_a.log",
+      "size_bytes": 233,
+      "sha256": "bfae7fec1f6fd5ca681e70840dde275f037e4805272939d88ba8be5eb3d6d73e"
+    },
+    {
+      "path": "docs/host_1102/oled_large_c.log",
+      "size_bytes": 233,
+      "sha256": "7f0545ee8c9abcb8fee4a87d0d94754ea8c5a4a1b157da97aa9222b0dc47d697"
+    },
+    {
+      "path": "docs/host_1102/oled_large_endpoints.log",
+      "size_bytes": 436,
+      "sha256": "a754cfe5106cb29519e977e1ec9b7697c13b5edea92451e481d6ecdb9d6d13c8"
+    },
+    {
+      "path": "docs/host_1102/oled_legacy.log",
+      "size_bytes": 179,
+      "sha256": "f0149c5198ee1ae54b40290615838d52f1c8d1c1607c6935493bd576ddd23fc7"
+    },
+    {
+      "path": "docs/host_1102/oled_off.log",
+      "size_bytes": 100,
+      "sha256": "a5648c7b82fe68089c5f5a907ca97b37980fc7d65b6c760496075d1d217ec22f"
+    },
+    {
+      "path": "docs/host_1102/pwm_clock.log",
+      "size_bytes": 164,
+      "sha256": "8b56957b2583f6d598ba15ee6c110bdb9cbbfe09b6ff5449be9d43bdb4538470"
+    },
+    {
+      "path": "docs/host_1102/summary.json",
+      "size_bytes": 38956,
+      "sha256": "8b9467e7892b4ae464bc9a34c6cfa92437771ae02472f0e01c88c356d3b9d5c7"
+    },
+    {
+      "path": "docs/oled_keyok_preview_1103.png",
+      "size_bytes": 5000,
+      "sha256": "ec1fca23a328c53703fa18d2143007102e1d5cf0fb59b8b3a1186d3d1e7d10f1"
+    },
+    {
+      "path": "docs/oled_preview_1102.png",
+      "size_bytes": 10297,
+      "sha256": "f7ec2217a8f62f951a296734b9505fda0634c20a3740f69c360ee9fd17a1c45b"
+    },
+    {
+      "path": "examples/servo_test_f429/README_KO.md",
+      "size_bytes": 4599,
+      "sha256": "c8474b2cb79018b6e10519c374c33dc00fbe6cf823df321487b04d5b7ee00e76"
+    },
+    {
+      "path": "examples/servo_test_f429/servo_test.c",
+      "size_bytes": 4752,
+      "sha256": "e863f07f033d04f6a17d5f14297142ae952a980619cb31cac823d3752301339b"
+    },
+    {
+      "path": "examples/servo_test_f429/servo_test.h",
+      "size_bytes": 728,
+      "sha256": "190b420edc8ff963ca95b5076e2726e927978215568cbe8952adf7e2c4000021"
+    },
+    {
+      "path": "tests/oled_stubs/stm32f4xx_hal.h",
+      "size_bytes": 405,
+      "sha256": "e434c74c3f9ae8b3b6fd720872b3b1fc777dbd48e3b50fddb57fe8703bbb5bfc"
+    },
+    {
+      "path": "tests/test_app.c",
+      "size_bytes": 26961,
+      "sha256": "5c35474f408b0a13a84a21d047ce525b1a74327dbc874c4696f49aba9f61de40"
+    },
+    {
+      "path": "tests/test_control.c",
+      "size_bytes": 9763,
+      "sha256": "cced86ffd1bb30c6ac6630c31c25190fdf84082bbc778c81ea1781e355aeba14"
+    },
+    {
+      "path": "tests/test_installer.py",
+      "size_bytes": 9331,
+      "sha256": "1a0b1f0d9843d5e22607be557e3f97aef565945da8ee5eb2b51027bf50aafe6c"
+    },
+    {
+      "path": "tests/test_line_reader.c",
+      "size_bytes": 1134,
+      "sha256": "e8d6352ecfa2d81958f3353e307947616b02d202c51ea5e722bcf915cb520946"
+    },
+    {
+      "path": "tests/test_oled.c",
+      "size_bytes": 6570,
+      "sha256": "3c0e81efc45c50794a9d741e7022bc1c6e61c18986e5babe697a5d26ea72dddb"
+    },
+    {
+      "path": "tests/test_pwm_clock.c",
+      "size_bytes": 3150,
+      "sha256": "4c9878b843148a2115a2d65668b56fbfc49fd7eeabd0b2428bd783baf6675b2a"
+    },
+    {
+      "path": "tests/test_vectors.c",
+      "size_bytes": 3053,
+      "sha256": "7ab3f8204eb70416ac0ab700f7d068f0922524af33a237d8302f7be31dc812fe"
+    },
+    {
+      "path": "tools/bench_console.py",
+      "size_bytes": 2556,
+      "sha256": "9c8023ae705da23b7553eb75b3f166e450b069d79bf0e9f19c6cf9d1e6d1da53"
+    },
+    {
+      "path": "tools/check_arm_build.py",
+      "size_bytes": 8826,
+      "sha256": "7f5334b4b5345ac95f64ee7fea477a0762f12c6adf3ff4e50ca8c1301fa64937"
+    },
+    {
+      "path": "tools/prepare_cubeide_copy.py",
+      "size_bytes": 13129,
+      "sha256": "40bbbb659bb8bfc17b7244c83f7e68b8db76c10a62e64c90fbf3988056718fb1"
+    },
+    {
+      "path": "tools/run_host_tests.py",
+      "size_bytes": 4855,
+      "sha256": "27b4570e60db5ab67599d143dae5485c70553fdb7f24ef4e69143a210367f194"
+    },
+    {
+      "path": "vendor/sharekey/SOURCE_MANIFEST.json",
+      "size_bytes": 871,
+      "sha256": "c41359af495403d941f40e990017edc2640b52daf356783c22e4329c7deed65b"
+    }
+  ],
+  "master_version": "v0.3.9",
+  "target_cubeide_project": "sharekey_f429_OLED",
+  "based_on": "relock_oled_20261102 (곽동규)",
+  "arm_build_note": "2026-11-04 arm-none-eabi-gcc 13.2.1 + STM32CubeF4 1.28.3: default/demo/policy-a/all-features/servo PASS, warnings 0 (build_support/ARM_BUILD_RESULTS_1104.json). CubeIDE project and hardware not tested.",
+  "review_fix": "곽동규 1104 검토 R1(모드 선택 중 HB) 수정, R2(적용 파일 8개) 문서 수정. docs/R1_1104.patch"
+}

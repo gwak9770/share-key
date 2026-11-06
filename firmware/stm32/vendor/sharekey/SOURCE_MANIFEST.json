@@ -1,0 +1,30 @@
+[
+  {
+    "file": "Core/Src/sharekey.c",
+    "sha256": "37fa45eaaadade0fbdae84b121f12e5d280921ad5ef4161ce2c20e8f4f9360a5",
+    "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.c",
+    "modified": true,
+    "base_sha256": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
+    "change": "1106 read-only display snapshot API; decision/wire behavior unchanged"
+  },
+  {
+    "file": "Core/Src/sk_crypto.c",
+    "sha256": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206",
+    "origin": "team10_share_1027(1).zip/sharekey/stm32/sk_crypto.c",
+    "modified": false
+  },
+  {
+    "file": "Core/Inc/sharekey.h",
+    "sha256": "47b81fb557bbee91275896245fbc1538ad176dd847b286318cd1bc02f0420d2c",
+    "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.h",
+    "modified": true,
+    "base_sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
+    "change": "1106 read-only display snapshot API; decision/wire behavior unchanged"
+  },
+  {
+    "file": "Core/Inc/sk_crypto.h",
+    "sha256": "4d57f322e297261f12e640fcbc83fd9f28c2d11243854f67d6e4c08316bbf4ef",
+    "origin": "team10_share_1027(1).zip/sharekey/stm32/sk_crypto.h",
+    "modified": false
+  }
+]

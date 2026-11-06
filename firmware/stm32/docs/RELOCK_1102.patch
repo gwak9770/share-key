@@ -1,0 +1,236 @@
+--- a/Core/Inc/config.h
++++ b/Core/Inc/config.h
+@@ -17,6 +17,14 @@
+ #ifndef VC_ENABLE_SERVO
+ #define VC_ENABLE_SERVO 1
+ #endif
++/* Only a qualified OPEN -> CLOSED edge after unlocking requests a relock.
++ * Set to 0 to restore the original v2 behaviour. No movement at boot. */
++#ifndef VC_RELOCK_ON_DOOR_CLOSE
++#define VC_RELOCK_ON_DOOR_CLOSE 1
++#endif
++#if VC_RELOCK_ON_DOOR_CLOSE != 0 && VC_RELOCK_ON_DOOR_CLOSE != 1
++#error "VC_RELOCK_ON_DOOR_CLOSE must be 0 or 1."
++#endif
+ #ifndef VC_ENABLE_MOTORS
+ #define VC_ENABLE_MOTORS 0
+ #endif
+@@ -24,7 +32,11 @@
+ #define VC_ENABLE_RTC 0
+ #endif
+ #ifndef VC_ENABLE_OLED
+-#define VC_ENABLE_OLED 0
++#define VC_ENABLE_OLED 1
++#endif
++/* v0.3.5 demo view; set 0 to retain the original eight-line diagnostic view. */
++#ifndef VC_OLED_LARGE_TEXT
++#define VC_OLED_LARGE_TEXT 1
+ #endif
+ #ifndef VC_ENABLE_RETURN_BUTTON
+ #define VC_ENABLE_RETURN_BUTTON 0
+--- a/Core/Inc/vehicle_platform.h
++++ b/Core/Inc/vehicle_platform.h
+@@ -5,7 +5,7 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ typedef struct {
+-    char policy;                 /* '-' / 'A' / 'D'; authentication, not movement completion. */
++    char policy;                 /* '-' / 'A' / 'D' / 'H'; result, not comparison mode or movement. */
+     char reason[3];
+     int remaining, command;
+     Result actuation;
+--- a/Core/Src/oled.c
++++ b/Core/Src/oled.c
+@@ -56,13 +56,15 @@
+     return true;
+ }
+ void oled_init(void) {
+-    /* SSD1306, 128x64, internal charge pump, page addressing. */
++    /* Original SSD1306 init, also reported working on the team's SSD1309
++     * JMD2.42 IIC (2026-11-02, one hardware trial). Keep these bytes unchanged. */
+     uint8_t cmd[]={0x00,0xAE,0xD5,0x80,0xA8,0x3F,0xD3,0x00,0x40,
+         0x8D,0x14,0x20,0x02,0xA1,0xC8,0xDA,0x12,0x81,0x7F,
+         0xD9,0xF1,0xDB,0x40,0xA4,0xA6,0xAF};
+     online=send(cmd,sizeof(cmd));
+     memset(frame,0,sizeof(frame)); offset=0; busy=online;
+ }
++#if !VC_OLED_LARGE_TEXT
+ static void text(unsigned row,const char *s) {
+     unsigned x=0;
+     while(*s && x+3<128) {
+@@ -78,9 +80,75 @@
+         x+=4; s++;
+     }
+ }
++#else
++/* Scale the existing 3x5 glyphs to 9x15 pixels (12-pixel character pitch).
++ * Four 16-pixel rows fit in 128x64. No heap allocation or new I2C mode. */
++static void large_text(unsigned y0,const char *s) {
++    unsigned x0=0;
++    while(*s && x0+9u<=128u) {
++        uint16_t bits=0;
++        for(unsigned i=0;i<sizeof(glyphs)/sizeof(glyphs[0]);i++)
++            if(glyphs[i].c==*s) { bits=glyphs[i].rows; break; }
++        for(unsigned y=0;y<5u;y++) for(unsigned x=0;x<3u;x++) {
++            if(!(bits&(1u<<(14u-y*3u-x)))) continue;
++            for(unsigned dy=0;dy<3u;dy++) for(unsigned dx=0;dx<3u;dx++) {
++                unsigned px=x0+x*3u+dx, py=y0+y*3u+dy;
++                if(py<64u) frame[(py/8u)*128u+px]|=(uint8_t)(1u<<(py%8u));
++            }
++        }
++        x0+=12u; s++;
++    }
++}
++static const char *large_fault(Fault fault) {
++    switch(fault) {
++    case FAULT_SENSOR: return "SENSOR ERR";
++    case FAULT_LINK: return "LINK LOST";
++    case FAULT_ESTOP: return "STOP";
++    case FAULT_DOOR: return "DOOR OPEN";
++    case FAULT_LOCK: return "LOCK LOST";
++    case FAULT_SERVO: return "SERVO TIME";
++    case FAULT_IO: return "IO ERROR";
++    default: return "FAULT";
++    }
++}
++static const char *large_actuation(Result result) {
++    switch(result) {
++    case RES_NOT_READY: return "NOT READY";
++    case RES_NOT_ARMED: return "NOT ARMED";
++    case RES_BUSY: return "ACT BUSY";
++    case RES_DOOR_OPEN: return "DOOR OPEN";
++    case RES_NOT_LOCKED: return "NOT LOCKED";
++    case RES_RANGE: return "ACT RANGE";
++    case RES_LINK_STALE: return "NO HB";
++    default: return "ACT FAULT";
++    }
++}
++#endif
+ void oled_status(const Controller *c,const RtcTime *t,const VehicleDisplay *d) {
+     if(!online||busy) return;
+     char s[48]; memset(frame,0,sizeof(frame));
++#if VC_OLED_LARGE_TEXT
++    (void)t;
++    snprintf(s,sizeof(s),"%c%s",APP_POLICY_MODE,c->fault!=FAULT_NONE?" FAULT":(TEST_BUILD?" TEST":""));
++    large_text(0,s);
++    if(d->policy=='A') large_text(16,"ALLOW");
++    else if(d->policy=='D'||d->policy=='H') {
++        snprintf(s,sizeof(s),"%s %.2s",d->policy=='D'?"DENY":"HOLD",d->reason);
++        large_text(16,s);
++    } else large_text(16,"WAIT");
++    if(d->policy=='-') large_text(32,"LEFT --");
++    else if(d->remaining<0) large_text(32,"LEFT INF");
++    else { snprintf(s,sizeof(s),"LEFT %d",d->remaining); large_text(32,s); }
++    if(c->fault!=FAULT_NONE) large_text(48,large_fault(c->fault));
++    else if(c->moving) large_text(48,"MOVING");
++    else if(d->actuation_attempted && d->actuation!=RES_OK) large_text(48,large_actuation(d->actuation));
++    else if(!control_lock_known(c)) large_text(48,"UNKNOWN");
++    else {
++        snprintf(s,sizeof(s),"%s%s",control_is_locked(c)?"LOCK":"UNLOCK",
++                 control_position_estimated(c)?" EST":"");
++        large_text(48,s);
++    }
++#else
+     text(0,TEST_BUILD?"F429 CONTROL / TEST":"F429 CONTROL / AUTH");
+     snprintf(s,sizeof(s),"ARM %u READY %u",c->armed,c->ready); text(1,s);
+     snprintf(s,sizeof(s),"DOOR %s",c->stable.door_closed?"CLOSED":"OPEN"); text(2,s);
+@@ -91,6 +159,7 @@
+     if(d->actuation_attempted) { snprintf(s,sizeof(s),"ACT %s",control_result(d->actuation)); text(7,s); }
+     else if(t->valid) { snprintf(s,sizeof(s),"%02u:%02u:%02u",t->hour,t->minute,t->second); text(7,s); }
+     else text(7,"ACT NONE / RTC INVALID");
++#endif
+     offset=0; busy=true;
+ }
+ void oled_service(void) {
+--- a/Core/Src/vehicle_app.c
++++ b/Core/Src/vehicle_app.c
+@@ -15,6 +15,9 @@
+ static bool last_moving, return_candidate, return_stable, return_released;
+ static uint32_t return_changed;
+ static Fault reported_fault;
++#if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
++static bool door_observed, previous_door_closed;
++#endif
+ 
+ static bool hex_digit(char c) {
+     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+@@ -50,6 +53,27 @@
+     vc_platform_apply(controller.output);
+     last_moving = controller.moving;
+     return result;
++}
++
++static void relock_on_door_close(void) {
++#if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
++    /* The first debounced observation is a baseline, never a closing edge.
++     * Retain the last qualified value across switch bounce. */
++    if (!controller.qualified[0]) return;
++    bool closed = controller.stable.door_closed;
++    bool closing = door_observed && !previous_door_closed && closed;
++    previous_door_closed = closed;
++    door_observed = true;
++    /* Consume the edge even when blocked; never defer motion until a later
++     * heartbeat, fault clear, or end of another movement. UNKNOWN-at-close
++     * is still a proposal, so this release only relocks from UNLOCKED. */
++    if (!closing || !controller.armed || controller.fault != FAULT_NONE ||
++        !control_is_unlocked(&controller)) return;
++    Result result = vehicle_app_request_lock();
++    char msg[80];
++    snprintf(msg, sizeof(msg), "DOOR CLOSED -> LOCK ACT=%s", control_result(result));
++    vc_platform_log(msg);
++#endif
+ }
+ 
+ bool vehicle_app_init(void) {
+@@ -64,6 +88,9 @@
+     allow_led = deny_led = server_online = last_moving = false;
+     return_candidate = return_stable = return_released = false;
+     return_changed = now; reported_fault = FAULT_NONE;
++#if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
++    door_observed = previous_door_closed = false;
++#endif
+     sk_set_sync_period(2000u);
+     sk_init(APP_POLICY_MODE);
+     vc_platform_apply(controller.output);
+@@ -141,6 +168,7 @@
+     sk_poll();
+     now = vc_platform_millis();
+     update_control(now);
++    relock_on_door_close();
+     if (VC_ENABLE_RETURN_BUTTON) {
+         bool raw = vc_platform_return_pressed();
+         if (raw != return_candidate) { return_candidate = raw; return_changed = now; }
+@@ -211,7 +239,32 @@
+     deny_led = true; allow_led = false; deny_started = vc_platform_millis();
+     /* A rejected credential never becomes a movement command or global stop. */
+ }
+-void sk_port_send_line(const char *line) { vc_platform_send_line(line); }
++void sk_port_send_line(const char *line) {
++    /* Mirror only the policy core's OUTGOING fixed-format RES to the display.
++     * Denial hooks have no remaining-count argument; the official response
++     * supplies it, including early REQ rejection. Never change the wire or
++     * use display parsing to grant an action. */
++    bool result_line = strlen(line) == 23u && has_rid(line) &&
++        !strncmp(line + 3, "RES|", 4u) && line[15] == '|' &&
++        line[17] == '|' && line[20] == '|' &&
++        (line[16] == 'A' || line[16] == 'D' || line[16] == 'H');
++    if (result_line) {
++        for (unsigned i = 7; i < 15; ++i)
++            if (!hex_digit(line[i])) result_line = false;
++        for (unsigned i = 18; i < 23; ++i)
++            if (i != 20u && !hex_digit(line[i])) result_line = false;
++    }
++    if (result_line) {
++        char remaining_hex[3] = {line[21], line[22], '\0'};
++        unsigned remaining = (unsigned)strtoul(remaining_hex, NULL, 16);
++        display.policy = line[16];
++        display.reason[0] = line[18]; display.reason[1] = line[19];
++        display.reason[2] = '\0';
++        display.remaining = remaining == 255u ? -1 : (int)remaining;
++        if (display.policy != 'A') display.actuation_attempted = false;
++    }
++    vc_platform_send_line(line);
++}
+ void sk_port_log(const char *line) {
+     if (!strcmp(line, "server sync ok -> ONLINE")) server_online = true;
+     if (!strcmp(line, "no server response -> OFFLINE")) server_online = false;

@@ -1,0 +1,352 @@
+[
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\PACKAGE_MANIFEST.json",
+    "target": "firmware\\stm32\\PACKAGE_MANIFEST.json",
+    "sha256": "5d489b5a1d159dd94327f909e2092460e17e669b2f0ab2249751a6c793ee4f8f"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\README_KO.md",
+    "target": "firmware\\stm32\\README_KO.md",
+    "sha256": "dcd0af728fba352ee41c30b519b66992e8d0e7988115a697c5e74f616bdd6e98"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\ARM_BUILD_RESULTS.json",
+    "target": "firmware\\stm32\\build_support\\ARM_BUILD_RESULTS.json",
+    "sha256": "63f3a3ede698a45d80b9f2d2f9a6d681272e63b7271bd5b969bed6eb9ef99f7a"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\ARM_BUILD_RESULTS_1103.json",
+    "target": "firmware\\stm32\\build_support\\ARM_BUILD_RESULTS_1103.json",
+    "sha256": "6e47578c86c6f07a186313b2f118b943cb6632f7c4b2769ac406109975c85de8"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\ARM_BUILD_RESULTS_1104.json",
+    "target": "firmware\\stm32\\build_support\\ARM_BUILD_RESULTS_1104.json",
+    "sha256": "c5c87deb4ab1d05a24603c45ed402972a3d577c070f42e064655c0704802ffad"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\dependencies.json",
+    "target": "firmware\\stm32\\build_support\\dependencies.json",
+    "sha256": "80f489628f145394a1ece93e48a416a46717f52e82bce2da9e668c8cab3c1aaa"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\main.h",
+    "target": "firmware\\stm32\\build_support\\main.h",
+    "sha256": "0f4b2d0a7a235ae4ec163693489655a620d202f8c6a4b4af7338b13e0244e72b"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\main_f429.c",
+    "target": "firmware\\stm32\\build_support\\main_f429.c",
+    "sha256": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\README_KO.md",
+    "target": "firmware\\stm32\\build_support\\README_KO.md",
+    "sha256": "62a76b51c6c122ced62361fcfb5cdb82d6c4db7fa67cdd2eac11f1e841161963"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\stm32f429zi.ld",
+    "target": "firmware\\stm32\\build_support\\stm32f429zi.ld",
+    "sha256": "41902a34c69dfa638b19a4592fb1cbe6fde505db7fe6cff5a8a38ec7c5a35e32"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\stm32f4xx_hal_conf.h",
+    "target": "firmware\\stm32\\build_support\\stm32f4xx_hal_conf.h",
+    "sha256": "cbb81d11b5650fad752edd3a35c1d7c3020776b0eec1a3e0598d305d01c5b41c"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\build_support\\syscalls.c",
+    "target": "firmware\\stm32\\build_support\\syscalls.c",
+    "sha256": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\board.h",
+    "target": "firmware\\stm32\\Core\\Inc\\board.h",
+    "sha256": "91340fe9bed760e01ea387244fbc51d8b3fb5a3c49244bc06854798944df1283"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\config.h",
+    "target": "firmware\\stm32\\Core\\Inc\\config.h",
+    "sha256": "4dc506648cccfe96ae5f3b9153100dc756b1e9177438a53b6b474d7389c402b4"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\control.h",
+    "target": "firmware\\stm32\\Core\\Inc\\control.h",
+    "sha256": "60dfa2272726d209fa1ec4c862f046b8e2c2e456a18d0dbca57a74b04ffc2ad4"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\line_reader.h",
+    "target": "firmware\\stm32\\Core\\Inc\\line_reader.h",
+    "sha256": "006834117729972f1173c19bff707be5c4bcaa587234aed1ec9fe42cb91e440f"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\peripherals.h",
+    "target": "firmware\\stm32\\Core\\Inc\\peripherals.h",
+    "sha256": "e3280caae3359c266145fec8be399327b4ed27ae034c0a1104fbe918953d0704"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\pwm_clock.h",
+    "target": "firmware\\stm32\\Core\\Inc\\pwm_clock.h",
+    "sha256": "c76b37e0bbece6efe6e7cd0a018d753de6a975ff3ec1c8fd74cae639efd11e92"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\sharekey.h",
+    "target": "firmware\\stm32\\Core\\Inc\\sharekey.h",
+    "sha256": "47b81fb557bbee91275896245fbc1538ad176dd847b286318cd1bc02f0420d2c"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\sk_crypto.h",
+    "target": "firmware\\stm32\\Core\\Inc\\sk_crypto.h",
+    "sha256": "4d57f322e297261f12e640fcbc83fd9f28c2d11243854f67d6e4c08316bbf4ef"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\vehicle_app.h",
+    "target": "firmware\\stm32\\Core\\Inc\\vehicle_app.h",
+    "sha256": "0d2b413c9ddf2eefe053ec2574be9cb5165f4e7c95c8bea853c615a21dc4ddc7"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Inc\\vehicle_platform.h",
+    "target": "firmware\\stm32\\Core\\Inc\\vehicle_platform.h",
+    "sha256": "a8f4d1bf99ff59425e6371e36fc921456629a524cd144eaeda2e2c3858a080ee"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\board.c",
+    "target": "firmware\\stm32\\Core\\Src\\board.c",
+    "sha256": "c1ee300e9e56c16ea9f2ec08f5f86976b535c3249dcba21d9783a656ac097b41"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\control.c",
+    "target": "firmware\\stm32\\Core\\Src\\control.c",
+    "sha256": "da56c6252e479960fae712e1d2e8dcbaf8960f48b68095b5e0be6b416a7e70ab"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\line_reader.c",
+    "target": "firmware\\stm32\\Core\\Src\\line_reader.c",
+    "sha256": "39bb38fb7586cc94dcdcec029093f908248cabe700cf95fb635fd58fcaa782ee"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\oled.c",
+    "target": "firmware\\stm32\\Core\\Src\\oled.c",
+    "sha256": "c1e86d51483f8ef0625bb7097ddc2a7bfb967b408085810e86663cc8114117b2"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\port_stm32.c",
+    "target": "firmware\\stm32\\Core\\Src\\port_stm32.c",
+    "sha256": "2b103e214aa5504b94c4f2e7f4ec55c2c49ff8182adfa7fe3d1f6e7be1c1cf12"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\pwm_clock.c",
+    "target": "firmware\\stm32\\Core\\Src\\pwm_clock.c",
+    "sha256": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\rtc.c",
+    "target": "firmware\\stm32\\Core\\Src\\rtc.c",
+    "sha256": "ed89986292d81c58ced41be43bc20e5491cb1b8680453d6c2df4789492409a73"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\sharekey.c",
+    "target": "firmware\\stm32\\Core\\Src\\sharekey.c",
+    "sha256": "37fa45eaaadade0fbdae84b121f12e5d280921ad5ef4161ce2c20e8f4f9360a5"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\sk_crypto.c",
+    "target": "firmware\\stm32\\Core\\Src\\sk_crypto.c",
+    "sha256": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\Core\\Src\\vehicle_app.c",
+    "target": "firmware\\stm32\\Core\\Src\\vehicle_app.c",
+    "sha256": "f4ce6e82547a9a7e26ba1d9bfd26a001cdf89f09c60bd43ec0a4b05d94457d7d"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\01_gwak_relock_20261102.md",
+    "target": "firmware\\stm32\\docs\\01_gwak_relock_20261102.md",
+    "sha256": "69e2bbd4c8a073744211b9e7953ae032b5a57b34428990fa53828e724d0b9609"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\HOST_TEST_RESULTS.json",
+    "target": "firmware\\stm32\\docs\\HOST_TEST_RESULTS.json",
+    "sha256": "f3b091a66de7f97121bf741c1b20789c42fe357e2c820b330e3f453c94617a92"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\INPUT_SOURCES.json",
+    "target": "firmware\\stm32\\docs\\INPUT_SOURCES.json",
+    "sha256": "b7614fd0fa9343da92a449fbf9ee44de6a6f90d3d26ea85f1fc4fe9ad3f293e5"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\INSTALLER_TEST_RESULTS.txt",
+    "target": "firmware\\stm32\\docs\\INSTALLER_TEST_RESULTS.txt",
+    "sha256": "341a9e3a68ffd54370e99415936ab5a2ee6670cd5b3643b8d5c9d91d99f388d3"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\INTEGRATE_CUBEIDE_KO.md",
+    "target": "firmware\\stm32\\docs\\INTEGRATE_CUBEIDE_KO.md",
+    "sha256": "16f47bf875efc3bcb9860dcb47361d6fc8718e280540fed7ea3609e133c62925"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\KEYOK_1103.patch",
+    "target": "firmware\\stm32\\docs\\KEYOK_1103.patch",
+    "sha256": "755f22319423928da277eef03af2518961c227a4c36530a05776d4b791c930f8"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\KEYOK_1103_KO.md",
+    "target": "firmware\\stm32\\docs\\KEYOK_1103_KO.md",
+    "sha256": "4037e0313ec5b33add32edbc7416c589417ac143776e486718e2b66209f9e89a"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\oled_keyok_preview_1103.png",
+    "target": "firmware\\stm32\\docs\\oled_keyok_preview_1103.png",
+    "sha256": "ec1fca23a328c53703fa18d2143007102e1d5cf0fb59b8b3a1186d3d1e7d10f1"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\OLED_LIVE_1106.patch",
+    "target": "firmware\\stm32\\docs\\OLED_LIVE_1106.patch",
+    "sha256": "85f9aa041c3da83fb439e269865698acf20ad2b93f72b16cd99288e60b34b66f"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\OLED_LIVE_1106_KO.md",
+    "target": "firmware\\stm32\\docs\\OLED_LIVE_1106_KO.md",
+    "sha256": "3225ed806acf047e65601362cf648f28b2515a9cf7d9c39e30f8e501695ecf54"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\oled_preview_1102.png",
+    "target": "firmware\\stm32\\docs\\oled_preview_1102.png",
+    "sha256": "f7ec2217a8f62f951a296734b9505fda0634c20a3740f69c360ee9fd17a1c45b"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\R1_1104.patch",
+    "target": "firmware\\stm32\\docs\\R1_1104.patch",
+    "sha256": "13384dc764b1099c823ed57080179fde30d5e8d69efc69b6782a11e1e43d8cbe"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\RELOCK_1102.patch",
+    "target": "firmware\\stm32\\docs\\RELOCK_1102.patch",
+    "sha256": "6188680688cd3e2283dece4600747a1b1a6854aceddaaa239fc9d072f7e88e70"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\RELOCK_1102_KO.md",
+    "target": "firmware\\stm32\\docs\\RELOCK_1102_KO.md",
+    "sha256": "32fa9f26207bb01883a55e056f010d2a0d8144d7bce685378e0f61e7ea4860be"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\VALIDATION_KO.md",
+    "target": "firmware\\stm32\\docs\\VALIDATION_KO.md",
+    "sha256": "f06c3a418ff5d820c65f2627ef7aa0a41b02564f76a961ac4ba9ec735005101e"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\WIRING_AND_TEST_KO.md",
+    "target": "firmware\\stm32\\docs\\WIRING_AND_TEST_KO.md",
+    "sha256": "5ba3d6c18befa4ff718d731fbfa0b821f26e1c223f3b8b519a22951a295d5517"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\WORKLOG_20261028.md",
+    "target": "firmware\\stm32\\docs\\WORKLOG_20261028.md",
+    "sha256": "bdbd679be70397cd0441cef3f9d0a9c506ee1bac766abe84252d79ba26496332"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\docs\\host_1102\\summary.json",
+    "target": "firmware\\stm32\\docs\\host_1102\\summary.json",
+    "sha256": "8b9467e7892b4ae464bc9a34c6cfa92437771ae02472f0e01c88c356d3b9d5c7"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\examples\\servo_test_f429\\README_KO.md",
+    "target": "firmware\\stm32\\examples\\servo_test_f429\\README_KO.md",
+    "sha256": "c8474b2cb79018b6e10519c374c33dc00fbe6cf823df321487b04d5b7ee00e76"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\examples\\servo_test_f429\\servo_test.c",
+    "target": "firmware\\stm32\\examples\\servo_test_f429\\servo_test.c",
+    "sha256": "e863f07f033d04f6a17d5f14297142ae952a980619cb31cac823d3752301339b"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\examples\\servo_test_f429\\servo_test.h",
+    "target": "firmware\\stm32\\examples\\servo_test_f429\\servo_test.h",
+    "sha256": "190b420edc8ff963ca95b5076e2726e927978215568cbe8952adf7e2c4000021"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_app.c",
+    "target": "firmware\\stm32\\tests\\test_app.c",
+    "sha256": "9a72d4f6ac600cf9b567103f90f282bba3ad83fcc11ea5b2b17f3eaf255c4614"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_control.c",
+    "target": "firmware\\stm32\\tests\\test_control.c",
+    "sha256": "cced86ffd1bb30c6ac6630c31c25190fdf84082bbc778c81ea1781e355aeba14"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_installer.py",
+    "target": "firmware\\stm32\\tests\\test_installer.py",
+    "sha256": "1a0b1f0d9843d5e22607be557e3f97aef565945da8ee5eb2b51027bf50aafe6c"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_line_reader.c",
+    "target": "firmware\\stm32\\tests\\test_line_reader.c",
+    "sha256": "e8d6352ecfa2d81958f3353e307947616b02d202c51ea5e722bcf915cb520946"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_oled.c",
+    "target": "firmware\\stm32\\tests\\test_oled.c",
+    "sha256": "497ca94097e7a316b1b41c1db755143331bef96bbb17e51a4b282c578c6712d4"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_pwm_clock.c",
+    "target": "firmware\\stm32\\tests\\test_pwm_clock.c",
+    "sha256": "4c9878b843148a2115a2d65668b56fbfc49fd7eeabd0b2428bd783baf6675b2a"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\test_vectors.c",
+    "target": "firmware\\stm32\\tests\\test_vectors.c",
+    "sha256": "7ab3f8204eb70416ac0ab700f7d068f0922524af33a237d8302f7be31dc812fe"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tests\\oled_stubs\\stm32f4xx_hal.h",
+    "target": "firmware\\stm32\\tests\\oled_stubs\\stm32f4xx_hal.h",
+    "sha256": "e434c74c3f9ae8b3b6fd720872b3b1fc777dbd48e3b50fddb57fe8703bbb5bfc"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tools\\bench_console.py",
+    "target": "firmware\\stm32\\tools\\bench_console.py",
+    "sha256": "9c8023ae705da23b7553eb75b3f166e450b069d79bf0e9f19c6cf9d1e6d1da53"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tools\\check_arm_build.py",
+    "target": "firmware\\stm32\\tools\\check_arm_build.py",
+    "sha256": "7f5334b4b5345ac95f64ee7fea477a0762f12c6adf3ff4e50ca8c1301fa64937"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tools\\prepare_cubeide_copy.py",
+    "target": "firmware\\stm32\\tools\\prepare_cubeide_copy.py",
+    "sha256": "40bbbb659bb8bfc17b7244c83f7e68b8db76c10a62e64c90fbf3988056718fb1"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tools\\run_host_tests.py",
+    "target": "firmware\\stm32\\tools\\run_host_tests.py",
+    "sha256": "27b4570e60db5ab67599d143dae5485c70553fdb7f24ef4e69143a210367f194"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\tools\\run_oled_tests.py",
+    "target": "firmware\\stm32\\tools\\run_oled_tests.py",
+    "sha256": "c3be9839a83b5e481845f6325525c77a0e51bc0aa97606171c6f062aaa56dcb5"
+  },
+  {
+    "source": "work\\oled_live_1106\\stm32_vehicle_control_f429_v2_1106\\vendor\\sharekey\\SOURCE_MANIFEST.json",
+    "target": "firmware\\stm32\\vendor\\sharekey\\SOURCE_MANIFEST.json",
+    "sha256": "6a5677c314fda78749d76bd35344b6c07bd022d4fbebd41727fa5867292efe0c"
+  },
+  {
+    "source": "outputs\\곽동규_라즈베리파이세팅_1028.md",
+    "target": "docs\\history\\곽동규_라즈베리파이세팅_1028.md",
+    "sha256": "7b08ef981c564f227295e6e7e796e2a7541d13830adcf2593a1c1b79df12bf83"
+  },
+  {
+    "source": "outputs\\gwak_team_notice_20261104.md",
+    "target": "docs\\history\\gwak_team_notice_20261104.md",
+    "sha256": "e5b3b227a7241c55c9000c2f0b0119d244bee6915e1519966720d2aefb8b44ae"
+  },
+  {
+    "source": "outputs\\01_gwak_r1_recheck_20261104.md",
+    "target": "docs\\history\\01_gwak_r1_recheck_20261104.md",
+    "sha256": "adf6927b5abb7bef50995f808cb59d574e8d53c50b6af44a79666dada37487a3"
+  }
+]

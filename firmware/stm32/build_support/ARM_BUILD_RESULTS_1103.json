@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-03",
+  "by": "권기백 (AI 작업 환경)",
+  "package": "stm32_vehicle_control_f429_v2_1103",
+  "scope": "Standalone ARM compile and link only. No CubeIDE project, no flash/upload, no hardware execution.",
+  "compiler": "arm-none-eabi-gcc 13.2.1 20231009 (Ubuntu 24.04 gcc-arm-none-eabi 13.2.rel1)",
+  "stm32cubef4": "v1.28.3 (HAL b6f0ed38, CMSIS device 3c77349c, CMSIS Include from tag)",
+  "flags": "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -Os; application sources -std=c11 -Wall -Wextra -Werror",
+  "variants": {
+    "default": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "  25132\t    108\t  14572\t  39812\t   9b84\t/home/claude/arm/out/default/f429_build_check.elf",
+      "warnings": 0
+    },
+    "demo": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "  25420\t    108\t  14572\t  40100\t   9ca4\t/home/claude/arm/out/demo/f429_build_check.elf",
+      "warnings": 0,
+      "note": "VC_DEMO_MODE_SELECT=1 (presentation build)"
+    },
+    "policy-a": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "  25132\t    108\t  14572\t  39812\t   9b84\t/home/claude/arm/out/policy-a/f429_build_check.elf",
+      "warnings": 0
+    },
+    "all-features": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "  28692\t    108\t  14668\t  43468\t   a9cc\t/home/claude/arm/out/all-features/f429_build_check.elf",
+      "warnings": 0
+    },
+    "servo": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "   7720\t     20\t   5332\t  13072\t   3310\t/home/claude/arm/out/servo/f429_build_check.elf",
+      "warnings": 0
+    }
+  }
+}

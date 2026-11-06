@@ -1,0 +1,333 @@
+--- a/Core/Inc/config.h
++++ b/Core/Inc/config.h
+@@ -8,6 +8,25 @@
+ #if APP_POLICY_MODE != 'A' && APP_POLICY_MODE != 'C'
+ #error "This integration release supports A/C only; RTC persistence policy needs separate integration."
+ #endif
++/* 1103 (권기백): demo-only boot mode selection with the Nucleo USER button
++ * (B1, PC13, high while pressed). Hold USER while pressing RESET -> the next
++ * mode after APP_POLICY_MODE in VC_DEMO_MODES; keep holding to step every
++ * VC_MODE_STEP_MS; release to confirm. Not held -> APP_POLICY_MODE.
++ * Keys/counts are RAM-only, so every RESET needs the key registered again.
++ * Default OFF: a real vehicle must not let a physical button pick a weaker
++ * policy. Only A/C are accepted until B/D are integrated with the RTC. */
++#ifndef VC_DEMO_MODE_SELECT
++#define VC_DEMO_MODE_SELECT 0
++#endif
++#ifndef VC_DEMO_MODES
++#define VC_DEMO_MODES "CA"
++#endif
++#ifndef VC_MODE_STEP_MS
++#define VC_MODE_STEP_MS 1500u
++#endif
++#ifndef VC_MODE_SELECT_MAX_MS
++#define VC_MODE_SELECT_MAX_MS 15000u
++#endif
+ #ifndef TEST_BUILD
+ #define TEST_BUILD 0
+ #endif
+--- a/Core/Inc/board.h
++++ b/Core/Inc/board.h
+@@ -33,6 +33,7 @@
+ void board_kill(void);
+ bool board_faulted(void);
+ bool board_return_pressed(void);
++bool board_mode_button(void);
+ void board_leds(bool allow, bool online, bool deny);
+ 
+ #endif
+--- a/Core/Inc/vehicle_app.h
++++ b/Core/Inc/vehicle_app.h
+@@ -7,6 +7,7 @@
+ void vehicle_app_step(void);
+ const Controller *vehicle_app_controller(void);
+ const VehicleDisplay *vehicle_app_display(void);
++char vehicle_app_mode(void);            /* A/C chosen at boot (see VC_DEMO_MODE_SELECT) */
+ /* Local control hooks: never bind to unauthenticated network commands. */
+ Result vehicle_app_request_lock(void);
+ void vehicle_app_stop(void);
+--- a/Core/Inc/vehicle_platform.h
++++ b/Core/Inc/vehicle_platform.h
+@@ -5,8 +5,10 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ typedef struct {
+-    char policy;                 /* '-' / 'A' / 'D' / 'H'; result, not comparison mode or movement. */
++    char policy;                 /* '-' / 'A' / 'D' / 'H' result; 'K' KEYOK / 'N' KEYNG (registration). Not mode or movement. */
+     char reason[3];
++    char kid[9];
++    char mode;                   /* comparison mode chosen at boot (A/C); 0 = APP_POLICY_MODE. */                 /* KID of the last KEYOK/KEYNG response, for display only. */
+     int remaining, command;
+     Result actuation;
+     bool actuation_attempted;
+@@ -22,6 +24,7 @@
+ void vc_platform_random(uint8_t *out, size_t n);
+ void vc_platform_indicators(bool allow, bool online, bool deny);
+ bool vc_platform_return_pressed(void);
++bool vc_platform_mode_button(void);   /* demo mode select (USER button), false if disabled */
+ void vc_platform_service(const Controller *c, const VehicleDisplay *display);
+ void vc_platform_panic(void);   /* Stops all outputs; hardware implementation never returns. */
+ #endif
+--- a/Core/Src/board.c
++++ b/Core/Src/board.c
+@@ -115,6 +115,10 @@
+ #if CONTROL_USE_ENDPOINTS
+     gpio(GPIOF, LOCK_PIN | UNLOCK_PIN, GPIO_MODE_INPUT, GPIO_PULLUP, 0u);
+ #endif
++#if VC_DEMO_MODE_SELECT
++    __HAL_RCC_GPIOC_CLK_ENABLE();          /* B1 USER on PC13, high while pressed */
++    gpio(GPIOC, GPIO_PIN_13, GPIO_MODE_INPUT, GPIO_PULLDOWN, 0u);
++#endif
+ #if VC_ENABLE_RETURN_BUTTON
+     __HAL_RCC_GPIOG_CLK_ENABLE();
+     gpio(GPIOG, GPIO_PIN_14, GPIO_MODE_INPUT, GPIO_PULLUP, 0u);
+@@ -248,6 +252,13 @@
+ 
+ bool board_faulted(void) { return failed; }
+ 
++bool board_mode_button(void) {
++#if VC_DEMO_MODE_SELECT
++    return HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET;
++#else
++    return false;
++#endif
++}
+ bool board_return_pressed(void) {
+ #if VC_ENABLE_RETURN_BUTTON
+     return HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_14) == GPIO_PIN_RESET;
+--- a/Core/Src/port_stm32.c
++++ b/Core/Src/port_stm32.c
+@@ -84,6 +84,7 @@
+ void vc_platform_apply(Outputs out) { board_apply(out); }
+ void vc_platform_indicators(bool a, bool o, bool d) { board_leds(a, o, d); }
+ bool vc_platform_return_pressed(void) { return board_return_pressed(); }
++bool vc_platform_mode_button(void) { return board_mode_button(); }
+ 
+ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *h) {
+     if (h != &huart3) return;
+--- a/Core/Src/vehicle_app.c
++++ b/Core/Src/vehicle_app.c
+@@ -76,6 +76,43 @@
+ #endif
+ }
+ 
++static char active_mode;
++char vehicle_app_mode(void) { return active_mode; }
++
++/* 1103: demo-only boot selection (config.h VC_DEMO_MODE_SELECT). Runs before
++ * sk_init(), so the policy core still gets a single mode for this boot. */
++static char select_mode(void) {
++    char mode = APP_POLICY_MODE;
++#if VC_DEMO_MODE_SELECT
++    static const char list[] = VC_DEMO_MODES;
++    char valid[sizeof(list)];
++    size_t n = 0;
++    for (size_t i = 0; list[i]; ++i)
++        if ((list[i] == 'A' || list[i] == 'C') && !memchr(valid, list[i], n)) valid[n++] = list[i];
++    if (n < 2u || !vc_platform_mode_button()) return mode;
++    size_t at = 0;
++    while (at < n && valid[at] != mode) ++at;
++    at = at < n ? (at + 1u) % n : 0u;        /* held: start at the mode after the default */
++    uint32_t start = vc_platform_millis(), step = start;
++    char msg[48];
++    for (;;) {
++        display.mode = valid[at];
++        snprintf(msg, sizeof(msg), "MODE SELECT %c (release USER to confirm)", valid[at]);
++        vc_platform_log(msg);
++        for (;;) {
++            vc_platform_service(&controller, &display);
++            uint32_t now = vc_platform_millis();
++            if (!vc_platform_mode_button() || (uint32_t)(now - start) >= VC_MODE_SELECT_MAX_MS)
++                return valid[at];
++            if ((uint32_t)(now - step) >= VC_MODE_STEP_MS) { step = now; break; }
++        }
++        at = (at + 1u) % n;
++    }
++#else
++    return mode;
++#endif
++}
++
+ bool vehicle_app_init(void) {
+     initialized = false;
+     if (!vc_platform_init()) return false;
+@@ -92,12 +129,14 @@
+     door_observed = previous_door_closed = false;
+ #endif
+     sk_set_sync_period(2000u);
+-    sk_init(APP_POLICY_MODE);
++    active_mode = select_mode();
++    display.mode = active_mode;
++    sk_init(active_mode);
+     vc_platform_apply(controller.output);
+     vc_platform_log("boot F429 vehicle control v2");
+     char msg[100];
+     snprintf(msg, sizeof(msg), "MODE=%c ENDPOINTS=%u SERVO=%u MOTOR=%u TEST=%u",
+-             APP_POLICY_MODE, (unsigned)CONTROL_USE_ENDPOINTS, (unsigned)VC_ENABLE_SERVO,
++             active_mode, (unsigned)CONTROL_USE_ENDPOINTS, (unsigned)VC_ENABLE_SERVO,
+              (unsigned)VC_ENABLE_MOTORS, (unsigned)TEST_BUILD);
+     vc_platform_log(msg);
+     initialized = true;
+@@ -263,6 +302,24 @@
+         display.remaining = remaining == 255u ? -1 : (int)remaining;
+         if (display.policy != 'A') display.actuation_attempted = false;
+     }
++    /* 1103 (권기백): mirror the policy core's KEY registration answer to the
++     * display only. "RR|KEYOK|KKKKKKKK" (17) / "RR|KEYNG|KKKKKKKK|CC" (20). */
++    size_t key_len = strlen(line);
++    bool key_ok = key_len == 17u && has_rid(line) && !strncmp(line + 3, "KEYOK|", 6u);
++    bool key_ng = key_len == 20u && has_rid(line) && !strncmp(line + 3, "KEYNG|", 6u) &&
++        line[17] == '|' && hex_digit(line[18]) && hex_digit(line[19]);
++    if (key_ok || key_ng) {
++        for (unsigned i = 9; i < 17; ++i)
++            if (!hex_digit(line[i])) key_ok = key_ng = false;
++    }
++    if (key_ok || key_ng) {
++        display.policy = key_ok ? 'K' : 'N';
++        display.reason[0] = key_ok ? '0' : line[18];
++        display.reason[1] = key_ok ? '0' : line[19];
++        display.reason[2] = '\0';
++        memcpy(display.kid, line + 9, 8u); display.kid[8] = '\0';
++        display.remaining = -1; display.actuation_attempted = false;
++    }
+     vc_platform_send_line(line);
+ }
+ void sk_port_log(const char *line) {
+--- a/Core/Src/oled.c
++++ b/Core/Src/oled.c
+@@ -129,14 +129,21 @@
+     char s[48]; memset(frame,0,sizeof(frame));
+ #if VC_OLED_LARGE_TEXT
+     (void)t;
+-    snprintf(s,sizeof(s),"%c%s",APP_POLICY_MODE,c->fault!=FAULT_NONE?" FAULT":(TEST_BUILD?" TEST":""));
++    snprintf(s,sizeof(s),"%c%s",d->mode?d->mode:APP_POLICY_MODE,c->fault!=FAULT_NONE?" FAULT":(TEST_BUILD?" TEST":""));
+     large_text(0,s);
+-    if(d->policy=='A') large_text(16,"ALLOW");
++    if(d->policy=='K') large_text(16,"KEY OK");
++    else if(d->policy=='N') { snprintf(s,sizeof(s),"KEY NG %.2s",d->reason); large_text(16,s); }
++    else if(d->policy=='A') large_text(16,"ALLOW");
+     else if(d->policy=='D'||d->policy=='H') {
+         snprintf(s,sizeof(s),"%s %.2s",d->policy=='D'?"DENY":"HOLD",d->reason);
+         large_text(16,s);
+     } else large_text(16,"WAIT");
+-    if(d->policy=='-') large_text(32,"LEFT --");
++    if(d->policy=='K'||d->policy=='N') {
++        const char *k=d->kid; while(k[0]=='0'&&k[1]) ++k;   /* 00000007 -> 7 */
++        if(strlen(k)<=6u) snprintf(s,sizeof(s),"KEY %s",k); else snprintf(s,sizeof(s),"%s",k);
++        large_text(32,s);
++    }
++    else if(d->policy=='-') large_text(32,"LEFT --");
+     else if(d->remaining<0) large_text(32,"LEFT INF");
+     else { snprintf(s,sizeof(s),"LEFT %d",d->remaining); large_text(32,s); }
+     if(c->fault!=FAULT_NONE) large_text(48,large_fault(c->fault));
+--- a/tests/test_app.c
++++ b/tests/test_app.c
+@@ -58,6 +58,13 @@
+     led_deny = deny;
+ }
+ bool vc_platform_return_pressed(void) { return return_pressed; }
++static uint32_t mode_hold_ms;                 /* USER held for this long from boot */
++bool vc_platform_mode_button(void) {
++    if (!mode_hold_ms) return false;
++    uint32_t step = mode_hold_ms < 100u ? mode_hold_ms : 100u;
++    mode_hold_ms -= step; now_ms += step;     /* holding the button takes time */
++    return true;
++}
+ void vc_platform_service(const Controller *c, const VehicleDisplay *display) {
+     assert(c && display);
+     ++service_count;
+@@ -604,6 +611,48 @@
+ #endif
+ }
+ 
++/* 1103: KEYOK/KEYNG are mirrored to the display; the wire line is unchanged. */
++static void test_key_registration_display(void) {
++    char line[160], prefix[40], expected[40], kid[9];
++    reset_app();
++    register_key();
++    snprintf(kid, sizeof(kid), "%08X", TEST_KID);
++    assert(vehicle_app_display()->policy == 'K');
++    assert(!strcmp(vehicle_app_display()->kid, kid));
++    assert(!strcmp(vehicle_app_display()->reason, "00"));
++    unsigned id = make_key(line, sizeof(line));
++    line[strlen(line) - 1] = line[strlen(line) - 1] == '0' ? '1' : '0';   /* tamper KEY tag */
++    snprintf(prefix, sizeof(prefix), "%02X|KEY", id);
++    snprintf(expected, sizeof(expected), "%02X|KEYNG|%08X|01", id, TEST_KID);
++    feed_line(line);
++    assert(!strcmp(last_wire_prefix(prefix), expected));
++    assert(vehicle_app_display()->policy == 'N');
++    assert(!strcmp(vehicle_app_display()->reason, "01"));
++    heartbeat();
++    authenticate(1, 'A', "00", 3u);
++    assert(vehicle_app_display()->policy == 'A');                       /* next RES overrides */
++}
++
++#if VC_DEMO_MODE_SELECT
++/* 1103: hold USER at RESET -> other mode, hold past one step -> wraps back. */
++static void test_demo_mode_select(void) {
++    char other = APP_POLICY_MODE == 'C' ? 'A' : 'C';
++    char response[160];
++    mode_hold_ms = 0; reset_app();
++    assert(vehicle_app_mode() == APP_POLICY_MODE && vehicle_app_display()->mode == APP_POLICY_MODE);
++    mode_hold_ms = 300; reset_app();
++    assert(vehicle_app_mode() == other && vehicle_app_display()->mode == other);
++    assert(has_log("MODE SELECT") && has_log(other == 'A' ? "MODE=A" : "MODE=C"));
++    register_key(); heartbeat();
++    unsigned id = make_response(1, response, sizeof(response));
++    feed_line(response);
++    expect_result(id, 'A', "00", other == 'A' ? 0xffu : 3u);   /* policy really switched */
++    mode_hold_ms = VC_MODE_STEP_MS + 300u; reset_app();
++    assert(vehicle_app_mode() == APP_POLICY_MODE);             /* stepped once more, wrapped */
++    mode_hold_ms = 0;
++}
++#endif
++
+ int main(void) {
+     test_heartbeat_and_servo_bridge();
+     test_policy_count_duplicate_and_sync();
+@@ -615,9 +664,14 @@
+     test_relock_busy_edge_not_deferred();
+     test_relock_faults_and_stop();
+     test_relock_physical_cycles_keep_policy();
++    test_key_registration_display();
++#if VC_DEMO_MODE_SELECT
++    test_demo_mode_select();
++    puts("PASS demo mode select: default, hold -> other mode (policy switched), hold longer -> wrap");
++#endif
+     printf("PASS app integration: policy=%c, endpoints=%d, motors=%d; real KEY/REQ/RESP/SYNC, HB, servo, count, tamper, replay, revoke, framing\n",
+            APP_POLICY_MODE, CONTROL_USE_ENDPOINTS, VC_ENABLE_MOTORS);
+-    printf("PASS relock=%d: boot/UNKNOWN idle, debounce, one-shot, busy edge, faults/stop, A/C physical cycles\n",
++    printf("PASS relock=%d: boot/UNKNOWN idle, debounce, one-shot, busy edge, faults/stop, A/C physical cycles; KEYOK/KEYNG display\n",
+            VC_RELOCK_ON_DOOR_CLOSE);
+     return 0;
+ }
+--- a/tests/test_oled.c
++++ b/tests/test_oled.c
+@@ -131,6 +131,16 @@
+     oled_status(&c,&time,&d); flush();
+     for(unsigned row=0;row<4u;++row) blank_row_tail(row,120u);
+     for(unsigned y=15;y<64u;y+=16u) for(unsigned x=0;x<128u;++x) assert(!pixel(x,y));
++    d.policy='K'; strcpy(d.reason,"00"); strcpy(d.kid,"00000007"); d.actuation_attempted=false;
++    oled_status(&c,&time,&d); flush();
++    glyph_at(0,1,0x5badu); glyph_at(4,1,0x2b6au); /* KEY OK */
++    glyph_at(0,2,0x5badu); glyph_at(4,2,0x7292u); blank_row_tail(2,60u); /* KEY 7 */
++    snapshot("keyok");
++    d.policy='N'; strcpy(d.reason,"01");
++    oled_status(&c,&time,&d); flush();
++    glyph_at(4,1,0x5ffdu); glyph_at(8,1,0x2c97u); /* KEY NG 01 */
++    strcpy(d.kid,"1234ABCD"); oled_status(&c,&time,&d); flush();
++    glyph_at(0,2,0x2c97u); glyph_at(7,2,0x6b6eu); /* long KID shown without prefix */
+ #endif
+     oled_status(&c,&time,&d); fail_next=true; oled_service();
+     assert(!oled_online()); before=calls;
+--- a/tools/run_host_tests.py
++++ b/tools/run_host_tests.py
+@@ -38,6 +38,8 @@
+         ("app_c_endpoints", ["-DAPP_POLICY_MODE='C'", "-DCONTROL_USE_ENDPOINTS=1"], common + ["tests/test_app.c"]),
+         ("app_a_endpoints", ["-DAPP_POLICY_MODE='A'", "-DCONTROL_USE_ENDPOINTS=1"], common + ["tests/test_app.c"]),
+         ("app_c_relock_off", ["-DAPP_POLICY_MODE='C'", "-DVC_RELOCK_ON_DOOR_CLOSE=0"], common + ["tests/test_app.c"]),
++        ("app_c_modeselect", ["-DAPP_POLICY_MODE='C'", "-DVC_DEMO_MODE_SELECT=1"], common + ["tests/test_app.c"]),
++        ("app_a_modeselect", ["-DAPP_POLICY_MODE='A'", "-DVC_DEMO_MODE_SELECT=1"], common + ["tests/test_app.c"]),
+         ("app_a_relock_off", ["-DAPP_POLICY_MODE='A'", "-DVC_RELOCK_ON_DOOR_CLOSE=0"], common + ["tests/test_app.c"]),
+         ("oled_large_c", ["-DSTM32F429xx", "-DAPP_POLICY_MODE='C'"], oled),
+         ("oled_large_a", ["-DSTM32F429xx", "-DAPP_POLICY_MODE='A'"], oled),

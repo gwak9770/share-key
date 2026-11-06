@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-04",
+  "by": "권기백 (AI 작업 환경)",
+  "package": "stm32_vehicle_control_f429_v2_1103 (1104 R1 수정 포함)",
+  "scope": "Standalone ARM compile and link only. No CubeIDE project, no flash/upload, no hardware execution.",
+  "compiler": "arm-none-eabi-gcc 13.2.1 20231009 (Ubuntu 24.04 gcc-arm-none-eabi 13.2.rel1)",
+  "stm32cubef4": "v1.28.3 (HAL b6f0ed38, CMSIS device 3c77349c, CMSIS Include from tag)",
+  "flags": "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -Os; application sources -std=c11 -Wall -Wextra -Werror",
+  "variants": {
+    "default": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "text\t   data\t    bss\t    dec\t    hex\tfilename\n  25132\t    108\t  14572\t  39812\t   9b84\tdefault/f429_build_check.elf",
+      "warnings": 0,
+      "elf_sha256": "28241af13c14cd670a1dd86801b6a999fd759ace097486957cef54db299026dc"
+    },
+    "demo": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "text\t   data\t    bss\t    dec\t    hex\tfilename\n  25484\t    108\t  14572\t  40164\t   9ce4\tdemo/f429_build_check.elf",
+      "warnings": 0,
+      "elf_sha256": "18db735f6e7b13765258c559be57c04d366d2a3ffdc3325b5e0f40cba5978088"
+    },
+    "policy-a": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "text\t   data\t    bss\t    dec\t    hex\tfilename\n  25132\t    108\t  14572\t  39812\t   9b84\tpolicy-a/f429_build_check.elf",
+      "warnings": 0,
+      "elf_sha256": "3dbc8eba340c18592a9d6ba7d029bdf5c99808b0b388c66e47c8bb0d93273957"
+    },
+    "all-features": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "text\t   data\t    bss\t    dec\t    hex\tfilename\n  28692\t    108\t  14668\t  43468\t   a9cc\tall-features/f429_build_check.elf",
+      "warnings": 0,
+      "elf_sha256": "fe85fdb2f8c15870aa8278f5c800531562032cf29f3b49584bf97ae5709b9178"
+    },
+    "servo": {
+      "status": "PASS",
+      "initial_stack_pointer": "0x20030000",
+      "size": "text\t   data\t    bss\t    dec\t    hex\tfilename\n   7720\t     20\t   5332\t  13072\t   3310\tservo/f429_build_check.elf",
+      "warnings": 0,
+      "elf_sha256": "a9094c8461256948bf927191a2d3fd6d0c478e65b35185042bbd591da7442ae5"
+    }
+  }
+}

@@ -1,0 +1,151 @@
+diff -ru -x build_support -x '*.json' -x R1_1104.patch orig/Core/Inc/config.h stm32_vehicle_control_f429_v2_1103/Core/Inc/config.h
+--- orig/Core/Inc/config.h	2026-11-04 13:46:54.350108826 +0900
++++ stm32_vehicle_control_f429_v2_1103/Core/Inc/config.h	2026-11-04 13:49:33.015995218 +0900
+@@ -12,6 +12,9 @@
+  * (B1, PC13, high while pressed). Hold USER while pressing RESET -> the next
+  * mode after APP_POLICY_MODE in VC_DEMO_MODES; keep holding to step every
+  * VC_MODE_STEP_MS; release to confirm. Not held -> APP_POLICY_MODE.
++ * Still held after VC_MODE_SELECT_MAX_MS -> the mode on screen is confirmed.
++ * 1104: UART bytes received while selecting are dropped (only HB that arrive
++ * after selection make the link fresh).
+  * Keys/counts are RAM-only, so every RESET needs the key registered again.
+  * Default OFF: a real vehicle must not let a physical button pick a weaker
+  * policy. Only A/C are accepted until B/D are integrated with the RTC. */
+diff -ru -x build_support -x '*.json' -x R1_1104.patch orig/Core/Inc/vehicle_platform.h stm32_vehicle_control_f429_v2_1103/Core/Inc/vehicle_platform.h
+--- orig/Core/Inc/vehicle_platform.h	2026-11-04 13:46:54.350143112 +0900
++++ stm32_vehicle_control_f429_v2_1103/Core/Inc/vehicle_platform.h	2026-11-04 13:47:22.527379157 +0900
+@@ -7,8 +7,8 @@
+ typedef struct {
+     char policy;                 /* '-' / 'A' / 'D' / 'H' result; 'K' KEYOK / 'N' KEYNG (registration). Not mode or movement. */
+     char reason[3];
+-    char kid[9];
+-    char mode;                   /* comparison mode chosen at boot (A/C); 0 = APP_POLICY_MODE. */                 /* KID of the last KEYOK/KEYNG response, for display only. */
++    char kid[9];                 /* KID of the last KEYOK/KEYNG response, for display only. */
++    char mode;                   /* comparison mode chosen at boot (A/C); 0 = APP_POLICY_MODE. */
+     int remaining, command;
+     Result actuation;
+     bool actuation_attempted;
+diff -ru -x build_support -x '*.json' -x R1_1104.patch orig/Core/Src/vehicle_app.c stm32_vehicle_control_f429_v2_1103/Core/Src/vehicle_app.c
+--- orig/Core/Src/vehicle_app.c	2026-11-04 13:46:54.350276571 +0900
++++ stm32_vehicle_control_f429_v2_1103/Core/Src/vehicle_app.c	2026-11-04 13:48:42.130374811 +0900
+@@ -79,8 +79,24 @@
+ static char active_mode;
+ char vehicle_app_mode(void) { return active_mode; }
+ 
++/* 1104 (곽동규 검토 R1): bytes received while the boot selection waits are
++ * never dispatched later. A buffered HB would otherwise be stamped with the
++ * time it is processed, not when it arrived, and look fresh for ~2s. Drop the
++ * queue; only if the drop stopped inside a line, discard up to the next '\n'
++ * so its tail cannot run as a valid suffix. Lines that arrive complete after
++ * selection are kept. */
++#if VC_DEMO_MODE_SELECT
++static bool select_cut_line;  /* last dropped byte was inside a line */
++static void drop_rx_during_select(void) {
++    int b;
++    while ((b = vc_platform_rx_get()) >= 0) select_cut_line = b != '\n';
++}
++#endif
++
+ /* 1103: demo-only boot selection (config.h VC_DEMO_MODE_SELECT). Runs before
+- * sk_init(), so the policy core still gets a single mode for this boot. */
++ * sk_init(), so the policy core still gets a single mode for this boot.
++ * Release USER to confirm; after VC_MODE_SELECT_MAX_MS the mode on screen at
++ * that moment is confirmed even if USER is still held. */
+ static char select_mode(void) {
+     char mode = APP_POLICY_MODE;
+ #if VC_DEMO_MODE_SELECT
+@@ -90,6 +106,7 @@
+     for (size_t i = 0; list[i]; ++i)
+         if ((list[i] == 'A' || list[i] == 'C') && !memchr(valid, list[i], n)) valid[n++] = list[i];
+     if (n < 2u || !vc_platform_mode_button()) return mode;
++    select_cut_line = false;
+     size_t at = 0;
+     while (at < n && valid[at] != mode) ++at;
+     at = at < n ? (at + 1u) % n : 0u;        /* held: start at the mode after the default */
+@@ -101,9 +118,13 @@
+         vc_platform_log(msg);
+         for (;;) {
+             vc_platform_service(&controller, &display);
++            drop_rx_during_select();
+             uint32_t now = vc_platform_millis();
+-            if (!vc_platform_mode_button() || (uint32_t)(now - start) >= VC_MODE_SELECT_MAX_MS)
++            if (!vc_platform_mode_button() || (uint32_t)(now - start) >= VC_MODE_SELECT_MAX_MS) {
++                drop_rx_during_select();
++                if (select_cut_line) line_reader_discard(&reader);
+                 return valid[at];
++            }
+             if ((uint32_t)(now - step) >= VC_MODE_STEP_MS) { step = now; break; }
+         }
+         at = (at + 1u) % n;
+diff -ru -x build_support -x '*.json' -x R1_1104.patch orig/tests/test_app.c stm32_vehicle_control_f429_v2_1103/tests/test_app.c
+--- orig/tests/test_app.c	2026-11-04 13:46:54.350448191 +0900
++++ stm32_vehicle_control_f429_v2_1103/tests/test_app.c	2026-11-04 13:48:01.381218888 +0900
+@@ -65,9 +65,16 @@
+     mode_hold_ms -= step; now_ms += step;     /* holding the button takes time */
+     return true;
+ }
++static const char *inject_during_select;      /* bytes that arrive while USER is held */
+ void vc_platform_service(const Controller *c, const VehicleDisplay *display) {
+     assert(c && display);
+     ++service_count;
++    if (inject_during_select && mode_hold_ms) {
++        size_t n = strlen(inject_during_select);
++        memcpy(rx_bytes, inject_during_select, n);
++        rx_read = 0; rx_write = n;
++        inject_during_select = NULL;
++    }
+ }
+ void vc_platform_panic(void) {
+     fputs("unexpected platform panic\n", stderr);
+@@ -651,6 +658,41 @@
+     assert(vehicle_app_mode() == APP_POLICY_MODE);             /* stepped once more, wrapped */
+     mode_hold_ms = 0;
+ }
++
++/* 1104 (곽동규 검토 R1): an HB received while USER is held must not count after
++ * selection. reset_app() itself asserts heartbeat_seen == false after the
++ * first app steps, so a buffered HB would already fail there. */
++static void test_mode_select_drops_buffered_rx(void) {
++    char response[160];
++    inject_during_select = "F0|HB\n";
++    mode_hold_ms = 4000u; reset_app();
++    assert(!inject_during_select && rx_read == rx_write);
++    assert(!control_link_fresh(vehicle_app_controller(), now_ms));
++    register_key();
++    unsigned id = make_response(1, response, sizeof(response));
++    feed_line(response);                                       /* policy may allow ... */
++    assert(vehicle_app_display()->actuation != RES_OK);        /* ... but no movement */
++    assert(!vehicle_app_controller()->moving && applied.servo_us == 0);
++    (void)id;
++    heartbeat();                                               /* a new HB after selection */
++    id = make_response(1, response, sizeof(response));
++    feed_line(response);
++    assert(vehicle_app_display()->actuation == RES_OK && vehicle_app_controller()->moving);
++
++    /* A line split by the drop: its tail after selection is discarded, never run. */
++    inject_during_select = "F0|H";
++    mode_hold_ms = 300u; reset_app();
++    feed_bytes("B\n", 2u);
++    assert(has_log("RX DROP"));
++    heartbeat();
++    assert(control_link_fresh(vehicle_app_controller(), now_ms));
++
++    /* Held past VC_MODE_SELECT_MAX_MS: the mode on screen is confirmed while held. */
++    mode_hold_ms = VC_MODE_SELECT_MAX_MS + 5000u; reset_app();
++    assert(mode_hold_ms > 0u);
++    assert(has_log("MODE SELECT") && vehicle_app_mode() == vehicle_app_display()->mode);
++    mode_hold_ms = 0;
++}
+ #endif
+ 
+ int main(void) {
+@@ -667,7 +709,8 @@
+     test_key_registration_display();
+ #if VC_DEMO_MODE_SELECT
+     test_demo_mode_select();
+-    puts("PASS demo mode select: default, hold -> other mode (policy switched), hold longer -> wrap");
++    test_mode_select_drops_buffered_rx();
++    puts("PASS demo mode select: default, hold -> other mode (policy switched), hold longer -> wrap, RX during select dropped (R1), 15s timeout");
+ #endif
+     printf("PASS app integration: policy=%c, endpoints=%d, motors=%d; real KEY/REQ/RESP/SYNC, HB, servo, count, tamper, replay, revoke, framing\n",
+            APP_POLICY_MODE, CONTROL_USE_ENDPOINTS, VC_ENABLE_MOTORS);

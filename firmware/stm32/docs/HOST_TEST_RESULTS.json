@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-28",
+  "scope": "Native host execution of real application/policy/control code with a fake hardware platform",
+  "compiler_flags": "-std=c11 -O1 -Wall -Wextra -Werror",
+  "tests": [
+    {
+      "name": "control_no_endpoints",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS control: endpoints=0, boot unknown, real heartbeat, servo completion, interlocks, stop, reversal, rollover"
+    },
+    {
+      "name": "control_endpoints",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS control: endpoints=1, boot unknown, real heartbeat, servo completion, interlocks, stop, reversal, rollover"
+    },
+    {
+      "name": "pwm_clock",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS PWM clocks: APB ratios, TIMPRE, exact 50Hz/1us and 10kHz, duty scaling, invalid clocks"
+    },
+    {
+      "name": "line_reader",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS line reader: CRLF, 512-character limit, overlength/binary/partial suffix discard"
+    },
+    {
+      "name": "auth_vectors",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS RFC4231 case 2\nPASS k_i KID 7\nPASS k_i KID 8\nPASS V1 open nonce0\nPASS V2 open\nPASS V3 start\nPASS V4 return\nPASS V5 KID 8\nPASS V6 nonce A5\nPASS KEY\nPASS SYNC\n\nALL PASS"
+    },
+    {
+      "name": "app_c",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS app integration: policy=C, endpoints=0, motors=0; real KEY/REQ/RESP/SYNC, HB, servo, count, tamper, replay, revoke, framing"
+    },
+    {
+      "name": "app_a",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS app integration: policy=A, endpoints=0, motors=0; real KEY/REQ/RESP/SYNC, HB, servo, count, tamper, replay, revoke, framing"
+    },
+    {
+      "name": "app_c_motor",
+      "compile_status": "PASS",
+      "run_status": "PASS",
+      "stdout": "PASS app integration: policy=C, endpoints=0, motors=1; real KEY/REQ/RESP/SYNC, HB, servo, count, tamper, replay, revoke, framing"
+    }
+  ]
+}

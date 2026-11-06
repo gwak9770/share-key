@@ -1,0 +1,166 @@
+--- a/Core/Inc/sharekey.h
++++ b/Core/Inc/sharekey.h
+@@ -34,6 +34,13 @@
+ void sk_handle_line(char *line);         /* "RID|종류|..." 한 줄 (\r\n 제거된 상태). line 은 수정됨 */
+ void sk_poll(void);                      /* 주기적으로 호출 (SYNCREQ 송신, 오프라인 판단) */
+ 
++/* Read-only UI snapshot. No nonce, count, state or authorization mutation.
++ * remaining is the raw policy counter (-1 for policies without a count).
++ * blocked_reason reports permanent state only: 03 revoked / 09 returned / 00.
++ * Returns 0 for an unknown KID or NULL output. Never use this to grant actions. */
++typedef struct { int remaining; char blocked_reason[3]; } sk_key_view_t;
++int sk_get_key_view(uint32_t kid, sk_key_view_t *view);
++
+ /* ---- 테스트용으로 공개 ---- */
+ void sk_derive(uint32_t kid, uint8_t ki[32]);
+ void sk_auth_tag(const uint8_t ki[32], uint32_t kid, uint8_t cmd, const uint8_t nonce[16], uint8_t tag[32]);
+--- a/Core/Inc/vehicle_platform.h
++++ b/Core/Inc/vehicle_platform.h
+@@ -5,9 +5,9 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ typedef struct {
+-    char policy;                 /* '-' / 'A' / 'D' / 'H' result; 'K' KEYOK / 'N' KEYNG (registration). Not mode or movement. */
++    char policy;                 /* '-' boot / 'W' ready after refill / 'A' / 'D' / 'H' result; 'K' KEYOK / 'N' KEYNG (registration). Not mode or movement. */
+     char reason[3];
+-    char kid[9];                 /* KID of the last KEYOK/KEYNG response, for display only. */
++    char kid[9];                 /* KID of the last KEYOK/KEYNG/RES, for display only. */
+     char mode;                   /* comparison mode chosen at boot (A/C); 0 = APP_POLICY_MODE. */
+     int remaining, command;
+     Result actuation;
+--- a/Core/Src/sharekey.c
++++ b/Core/Src/sharekey.c
+@@ -66,6 +66,15 @@
+     for (int i = 0; i < SK_MAX_KEYS; i++) if (keys[i].used && keys[i].kid == kid) return &keys[i];
+     return NULL;
+ }
++int sk_get_key_view(uint32_t kid, sk_key_view_t *view) {
++    const sk_key_t *k = find(kid);
++    if (!k || !view) return 0;
++    view->remaining = use_cnt ? (int)k->remaining : -1;
++    memcpy(view->blocked_reason, k->state == ST_REVOKED ? "03" :
++           k->state == ST_RETURNED ? "09" : "00", 3u);
++    return 1;
++}
++
+ static void logf_(const char *m) { sk_port_log(m); }
+ 
+ /* ---------- 인증값 계산 (Python common.py 와 동일) ---------- */
+--- a/Core/Src/vehicle_app.c
++++ b/Core/Src/vehicle_app.c
+@@ -205,6 +205,30 @@
+     sk_handle_line(line);
+ }
+ 
++/* Read the selected KID from the real policy state, never from incoming SYNC
++ * text or a second shadow counter. Called after core processing has finished. */
++static void refresh_key_display(bool synced) {
++    sk_key_view_t view;
++    if (!display.kid[0] || display.policy == 'N') return;
++    uint32_t kid = (uint32_t)strtoul(display.kid, NULL, 16);
++    if (!sk_get_key_view(kid, &view)) return;
++    display.remaining = strcmp(view.blocked_reason, "00") ? 0 : view.remaining;
++    if (strcmp(view.blocked_reason, "00")) {
++        /* Effective usable count is zero; the raw core counter stays intact.
++         * Keep a newer failed request's 01/02 etc. reason for diagnostics. */
++        if (synced || display.policy != 'D' || !strcmp(display.reason, "05")) {
++            display.policy = 'D';
++            memcpy(display.reason, view.blocked_reason, 3u);
++        }
++        display.actuation_attempted = false;
++    } else if (display.policy == 'D' && !strcmp(display.reason, "05") &&
++               display.remaining != 0) {
++        /* A refill clears stale count exhaustion, but is not an auth grant. */
++        display.policy = 'W'; memcpy(display.reason, "--", 3u);
++        display.actuation_attempted = false;
++    }
++}
++
+ void vehicle_app_step(void) {
+     if (!initialized) return;
+     uint32_t now = vc_platform_millis();
+@@ -226,6 +250,7 @@
+         }
+     }
+     sk_poll();
++    refresh_key_display(false);
+     now = vc_platform_millis();
+     update_control(now);
+     relock_on_door_close();
+@@ -317,6 +342,7 @@
+     if (result_line) {
+         char remaining_hex[3] = {line[21], line[22], '\0'};
+         unsigned remaining = (unsigned)strtoul(remaining_hex, NULL, 16);
++        memcpy(display.kid, line + 7, 8u); display.kid[8] = '\0';
+         display.policy = line[16];
+         display.reason[0] = line[18]; display.reason[1] = line[19];
+         display.reason[2] = '\0';
+@@ -341,6 +367,8 @@
+         memcpy(display.kid, line + 9, 8u); display.kid[8] = '\0';
+         display.remaining = -1; display.actuation_attempted = false;
+     }
++    if (has_rid(line) && !strncmp(line + 3, "SYNCACK|", 8u))
++        refresh_key_display(true); /* Core emits ACK only after authenticated apply. */
+     vc_platform_send_line(line);
+ }
+ void sk_port_log(const char *line) {
+--- a/Core/Src/port_stm32.c
++++ b/Core/Src/port_stm32.c
+@@ -19,7 +19,7 @@
+ #endif
+ #if VC_ENABLE_RTC || VC_ENABLE_OLED
+ static RtcTime rtc_time;
+-static uint32_t last_rtc, last_oled, last_retry;
++static uint32_t last_rtc, last_retry;
+ #endif
+ 
+ static uint32_t critical_enter(void) { uint32_t p = __get_PRIMASK(); __disable_irq(); return p; }
+@@ -72,7 +72,7 @@
+ #endif
+ #if VC_ENABLE_RTC || VC_ENABLE_OLED
+     memset(&rtc_time, 0, sizeof(rtc_time));
+-    last_rtc = HAL_GetTick() - 1000u; last_oled = last_retry = HAL_GetTick();
++    last_rtc = HAL_GetTick() - 1000u; last_retry = HAL_GetTick();
+ #endif
+ #if VC_ENABLE_OLED
+     oled_init();
+@@ -139,7 +139,7 @@
+     if ((uint32_t)(now - last_rtc) >= 1000u) { last_rtc = now; (void)rtc_read(&rtc_time); }
+ #endif
+ #if VC_ENABLE_OLED
+-    if ((uint32_t)(now - last_oled) >= 500u) { last_oled = now; oled_status(c, &rtc_time, display); }
++    oled_status(c, &rtc_time, display); /* Changed frames start without a 500ms gate. */
+     if (!oled_online() && (uint32_t)(now - last_retry) >= 5000u) { last_retry = now; oled_init(); }
+     oled_service(); /* A bounded small I2C chunk, never a full-screen busy loop. */
+ #endif
+--- a/Core/Src/oled.c
++++ b/Core/Src/oled.c
+@@ -4,7 +4,8 @@
+ #include "board.h"
+ #include <string.h>
+ #include <stdio.h>
+-static uint8_t frame[1024];
++static uint8_t frame[1024], submitted[1024];
++static bool submitted_valid;
+ static bool online,busy;
+ static unsigned offset;
+ static const struct { char c; uint16_t rows; } glyphs[]={
+@@ -61,6 +62,7 @@
+     uint8_t cmd[]={0x00,0xAE,0xD5,0x80,0xA8,0x3F,0xD3,0x00,0x40,
+         0x8D,0x14,0x20,0x02,0xA1,0xC8,0xDA,0x12,0x81,0x7F,
+         0xD9,0xF1,0xDB,0x40,0xA4,0xA6,0xAF};
++    submitted_valid=false;
+     online=send(cmd,sizeof(cmd));
+     memset(frame,0,sizeof(frame)); offset=0; busy=online;
+ }
+@@ -167,6 +169,10 @@
+     else if(t->valid) { snprintf(s,sizeof(s),"%02u:%02u:%02u",t->hour,t->minute,t->second); text(7,s); }
+     else text(7,"ACT NONE / RTC INVALID");
+ #endif
++    /* No redundant I2C traffic for unchanged pixels. While busy we keep the
++     * in-flight frame intact; the next foreground call renders latest state. */
++    if(submitted_valid && !memcmp(frame,submitted,sizeof(frame))) return;
++    memcpy(submitted,frame,sizeof(frame)); submitted_valid=true;
+     offset=0; busy=true;
+ }
+ void oled_service(void) {

@@ -1,0 +1,25 @@
+2026-10-28
+test_custom_split_sram_requires_manual_review (test_installer.InstallerTests.test_custom_split_sram_requires_manual_review) ... ok
+test_embedded_symlink_rejected (test_installer.InstallerTests.test_embedded_symlink_rejected) ... ok
+test_existing_main_hook_not_duplicated (test_installer.InstallerTests.test_existing_main_hook_not_duplicated) ... ok
+test_existing_output_preserved (test_installer.InstallerTests.test_existing_output_preserved) ... ok
+test_external_linker_rejected (test_installer.InstallerTests.test_external_linker_rejected) ... ok
+test_f429_filename_cannot_hide_f7_ram (test_installer.InstallerTests.test_f429_filename_cannot_hide_f7_ram) ... ok
+test_hal_config_failure_leaves_no_output (test_installer.InstallerTests.test_hal_config_failure_leaves_no_output) ... ok
+test_ioc_alone_cannot_identify_target (test_installer.InstallerTests.test_ioc_alone_cannot_identify_target) ... ok
+test_linked_resources_rejected (test_installer.InstallerTests.test_linked_resources_rejected) ... ok
+test_literal_stack_top_accepted (test_installer.InstallerTests.test_literal_stack_top_accepted) ... ok
+test_main_hook_outside_user_section_rejected (test_installer.InstallerTests.test_main_hook_outside_user_section_rejected) ... ok
+test_missing_startup_rejected (test_installer.InstallerTests.test_missing_startup_rejected) ... ok
+test_missing_uart_init_rejected_before_copy (test_installer.InstallerTests.test_missing_uart_init_rejected_before_copy) ... ok
+test_mixed_f7_build_settings_rejected (test_installer.InstallerTests.test_mixed_f7_build_settings_rejected) ... ok
+test_original_project_build_path_rejected (test_installer.InstallerTests.test_original_project_build_path_rejected) ... ok
+test_stale_startup_rejected (test_installer.InstallerTests.test_stale_startup_rejected) ... ok
+test_valid_copy_preserves_source_and_custom_init (test_installer.InstallerTests.test_valid_copy_preserves_source_and_custom_init) ... ok
+test_wrong_ram_origin_rejected (test_installer.InstallerTests.test_wrong_ram_origin_rejected) ... ok
+test_wrong_stack_top_rejected (test_installer.InstallerTests.test_wrong_stack_top_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 1.145s
+
+OK

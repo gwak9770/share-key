@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-28",
+  "scope": "Standalone STM32F429ZI ARM compile/link; no CubeIDE integration or hardware execution",
+  "toolchain": "Arm GNU Toolchain 14.2.Rel1 / GCC 14.2.1",
+  "cube_f4_version": "1.28.3",
+  "variants": [
+    {
+      "name": "default",
+      "status": "PASS",
+      "compiler_warnings": 0,
+      "initial_stack_pointer": "0x20030000",
+      "elf_sha256": "0dabc4c0c2150b72a4dd963bee52434c9d7ba73df1052d16f0b4af9d582c65d6",
+      "flash_bytes": 18644,
+      "ram_bytes": 13496,
+      "application_source_sha256": {
+        "Core/Src/board.c": "fcfe1447b2a140756fb4356ab3f46d96ed11d3fb4441a20ada1a1f73ad4f6ac5",
+        "Core/Src/control.c": "da56c6252e479960fae712e1d2e8dcbaf8960f48b68095b5e0be6b416a7e70ab",
+        "Core/Src/line_reader.c": "39bb38fb7586cc94dcdcec029093f908248cabe700cf95fb635fd58fcaa782ee",
+        "Core/Src/oled.c": "dd63d747db33c307cdabc713f4ca8528cb584363b446e3a8c4747c0eb826e24e",
+        "Core/Src/port_stm32.c": "81a82914818bb97ffa58bd978730aa70f94ba7c2ecc4440e22d1e72c39bf7ed5",
+        "Core/Src/pwm_clock.c": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01",
+        "Core/Src/rtc.c": "ed89986292d81c58ced41be43bc20e5491cb1b8680453d6c2df4789492409a73",
+        "Core/Src/sharekey.c": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
+        "Core/Src/sk_crypto.c": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206",
+        "Core/Src/vehicle_app.c": "7cc1dc85e790eb930287051d4aaa4c4acab6fbc91e255cef400980ed9d98404d",
+        "build_support/main_f429.c": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555",
+        "build_support/syscalls.c": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+      }
+    },
+    {
+      "name": "all-features",
+      "status": "PASS",
+      "compiler_warnings": 0,
+      "initial_stack_pointer": "0x20030000",
+      "elf_sha256": "087c4aadb3ac2f90d650aafdac27f71375500037e50ad091825947cd9488b11a",
+      "flash_bytes": 25108,
+      "ram_bytes": 14752,
+      "application_source_sha256": {
+        "Core/Src/board.c": "fcfe1447b2a140756fb4356ab3f46d96ed11d3fb4441a20ada1a1f73ad4f6ac5",
+        "Core/Src/control.c": "da56c6252e479960fae712e1d2e8dcbaf8960f48b68095b5e0be6b416a7e70ab",
+        "Core/Src/line_reader.c": "39bb38fb7586cc94dcdcec029093f908248cabe700cf95fb635fd58fcaa782ee",
+        "Core/Src/oled.c": "dd63d747db33c307cdabc713f4ca8528cb584363b446e3a8c4747c0eb826e24e",
+        "Core/Src/port_stm32.c": "81a82914818bb97ffa58bd978730aa70f94ba7c2ecc4440e22d1e72c39bf7ed5",
+        "Core/Src/pwm_clock.c": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01",
+        "Core/Src/rtc.c": "ed89986292d81c58ced41be43bc20e5491cb1b8680453d6c2df4789492409a73",
+        "Core/Src/sharekey.c": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
+        "Core/Src/sk_crypto.c": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206",
+        "Core/Src/vehicle_app.c": "7cc1dc85e790eb930287051d4aaa4c4acab6fbc91e255cef400980ed9d98404d",
+        "build_support/main_f429.c": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555",
+        "build_support/syscalls.c": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+      }
+    },
+    {
+      "name": "policy-a",
+      "status": "PASS",
+      "compiler_warnings": 0,
+      "initial_stack_pointer": "0x20030000",
+      "elf_sha256": "030c4f4084ecdf4d79027c2145fc9607160a824725c603b4823ec6381e2eb2ef",
+      "flash_bytes": 18644,
+      "ram_bytes": 13496,
+      "application_source_sha256": {
+        "Core/Src/board.c": "fcfe1447b2a140756fb4356ab3f46d96ed11d3fb4441a20ada1a1f73ad4f6ac5",
+        "Core/Src/control.c": "da56c6252e479960fae712e1d2e8dcbaf8960f48b68095b5e0be6b416a7e70ab",
+        "Core/Src/line_reader.c": "39bb38fb7586cc94dcdcec029093f908248cabe700cf95fb635fd58fcaa782ee",
+        "Core/Src/oled.c": "dd63d747db33c307cdabc713f4ca8528cb584363b446e3a8c4747c0eb826e24e",
+        "Core/Src/port_stm32.c": "81a82914818bb97ffa58bd978730aa70f94ba7c2ecc4440e22d1e72c39bf7ed5",
+        "Core/Src/pwm_clock.c": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01",
+        "Core/Src/rtc.c": "ed89986292d81c58ced41be43bc20e5491cb1b8680453d6c2df4789492409a73",
+        "Core/Src/sharekey.c": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
+        "Core/Src/sk_crypto.c": "b45fcff5145edd062228824f5fbde2b370a6ca1fa8911e6d0f6b33fa39fe2206",
+        "Core/Src/vehicle_app.c": "7cc1dc85e790eb930287051d4aaa4c4acab6fbc91e255cef400980ed9d98404d",
+        "build_support/main_f429.c": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555",
+        "build_support/syscalls.c": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+      }
+    },
+    {
+      "name": "servo",
+      "status": "PASS",
+      "compiler_warnings": 0,
+      "initial_stack_pointer": "0x20030000",
+      "elf_sha256": "ec2dfa56f63c17a76aa2c40d9614eabbe2834d37f697940f5ee77686d702e79b",
+      "flash_bytes": 7656,
+      "ram_bytes": 5344,
+      "application_source_sha256": {
+        "examples/servo_test_f429/servo_test.c": "e863f07f033d04f6a17d5f14297142ae952a980619cb31cac823d3752301339b",
+        "Core/Src/pwm_clock.c": "9c97a873327955061e48a93302a3d2f3ed9acaad3aa0c2353c019e79bff1cc01",
+        "build_support/main_f429.c": "fdcc16f1480deb9c711179380c9a7418e747a51960dce95e9e358c0a441de555",
+        "build_support/syscalls.c": "0047a7b64c0e02f04c4e98ed0c13c9c59d83467267045eb139c311f8e5c9badb"
+      }
+    }
+  ],
+  "configuration_files_sha256": {
+    "Core/Inc/board.h": "e774ad34dd6c77bd50d54e7d610de3d987429670ae0b2a26782baab04e1305e8",
+    "Core/Inc/config.h": "2034a5bf2a26db781f22b5abeebb0622243e736829920874b246431a441b3241",
+    "Core/Inc/control.h": "60dfa2272726d209fa1ec4c862f046b8e2c2e456a18d0dbca57a74b04ffc2ad4",
+    "Core/Inc/line_reader.h": "006834117729972f1173c19bff707be5c4bcaa587234aed1ec9fe42cb91e440f",
+    "Core/Inc/peripherals.h": "e3280caae3359c266145fec8be399327b4ed27ae034c0a1104fbe918953d0704",
+    "Core/Inc/pwm_clock.h": "c76b37e0bbece6efe6e7cd0a018d753de6a975ff3ec1c8fd74cae639efd11e92",
+    "Core/Inc/sharekey.h": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
+    "Core/Inc/sk_crypto.h": "4d57f322e297261f12e640fcbc83fd9f28c2d11243854f67d6e4c08316bbf4ef",
+    "Core/Inc/vehicle_app.h": "b42be8d48e5c59f3faebe6cf1deb586898b541725509cc1fb9320bf8a6b74d72",
+    "Core/Inc/vehicle_platform.h": "6fb85214a464171bed3eee89fbc726121e344cb9b84f6e04b074ea9d2103606a",
+    "build_support/stm32f429zi.ld": "41902a34c69dfa638b19a4592fb1cbe6fde505db7fe6cff5a8a38ec7c5a35e32",
+    "build_support/stm32f4xx_hal_conf.h": "cbb81d11b5650fad752edd3a35c1d7c3020776b0eec1a3e0598d305d01c5b41c",
+    "build_support/main.h": "0f4b2d0a7a235ae4ec163693489655a620d202f8c6a4b4af7338b13e0244e72b"
+  }
+}

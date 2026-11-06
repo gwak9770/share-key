@@ -1,0 +1,13 @@
+{
+  "stm32cube_f4_version": "1.28.3",
+  "stm32cube_f4_url": "https://github.com/STMicroelectronics/STM32CubeF4/tree/v1.28.3",
+  "hal_commit": "b6f0ed3829f3829eb358a2e7417d80bba1a42db7",
+  "cmsis_device_commit": "3c77349ce04c8af401454cc51f85ea9a50e34fc1",
+  "cmsis_core_version_source": "STM32CubeF4 v1.28.3 Drivers/CMSIS/Include",
+  "validation_compiler": "Arm GNU Toolchain 14.2.Rel1 (Build arm-14.52), GCC 14.2.1 20241119",
+  "compiler_download": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz",
+  "compiler_sha256": "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823",
+  "compiler_checksum_verified_against_official_sha256asc": true,
+  "hardware_execution_performed": false,
+  "cubeide_project_validated": false
+}
