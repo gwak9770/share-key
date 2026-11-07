@@ -91,7 +91,15 @@ int main(void) {
     glyph_at(0,1,0x5bfdu); /* WAIT */
     glyph_at(5,2,0x01c0u); /* LEFT -- */
     glyph_at(0,3,0x5b6fu); /* UNKNOWN */
+    glyph_at(2,0,0x6b6eu); glyph_at(7,0,0x01c0u); glyph_at(8,0,0x01c0u); /* DOOR -- before debounce */
     snapshot("wait");
+    c.qualified[0]=true; c.stable.door_closed=true;
+    oled_status(&c,&time,&d); flush();
+    glyph_at(7,0,0x3923u); glyph_at(8,0,0x4927u); blank_row_tail(0,108u); /* DOOR CL */
+    c.stable.door_closed=false;
+    oled_status(&c,&time,&d); flush();
+    glyph_at(7,0,0x2b6au); glyph_at(8,0,0x6ba4u); /* DOOR OP */
+    c.stable.door_closed=true;
 #endif
     d.policy='A'; d.remaining=APP_POLICY_MODE=='C'?3:-1; strcpy(d.reason,"00");
     d.actuation_attempted=true; d.actuation=RES_OK; c.position=LOCK_UNLOCKED;

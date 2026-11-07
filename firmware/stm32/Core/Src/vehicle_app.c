@@ -55,6 +55,19 @@ static Result request(Action action, int value, uint32_t now) {
     return result;
 }
 
+/* 1106 (권기백): report the debounced door switch as a '#' debug log line
+ * ("# DOOR STATE OPEN" / "# DOOR STATE CLOSED") so the Pi relay can show the
+ * real door on the demo web page. Log only — not a protocol message (00 §5:
+ * '#' lines are debug logs), no effect on policy, actuation or relock. */
+static int door_logged = -1;
+static void log_door_state(void) {
+    if (!controller.qualified[0]) return;
+    int closed = controller.stable.door_closed ? 1 : 0;
+    if (closed == door_logged) return;
+    door_logged = closed;
+    vc_platform_log(closed ? "DOOR STATE CLOSED" : "DOOR STATE OPEN");
+}
+
 static void relock_on_door_close(void) {
 #if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
     /* The first debounced observation is a baseline, never a closing edge.
@@ -149,6 +162,7 @@ bool vehicle_app_init(void) {
 #if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
     door_observed = previous_door_closed = false;
 #endif
+    door_logged = -1;
     sk_set_sync_period(2000u);
     active_mode = select_mode();
     display.mode = active_mode;
@@ -253,6 +267,7 @@ void vehicle_app_step(void) {
     refresh_key_display(false);
     now = vc_platform_millis();
     update_control(now);
+    log_door_state();
     relock_on_door_close();
     if (VC_ENABLE_RETURN_BUTTON) {
         bool raw = vc_platform_return_pressed();

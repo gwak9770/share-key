@@ -35,6 +35,54 @@ static void gpio(GPIO_TypeDef *port, uint32_t pins, uint32_t mode,
     HAL_GPIO_Init(port, &g);
 }
 
+#if VC_ENABLE_RTC || VC_ENABLE_OLED
+/* 1104 (김채희 실물: OLED가 RESET으로 안 풀리고 OLED 전원을 껐다 켜야 풀림).
+ * A slave interrupted mid-byte can keep SDA low; resetting only the STM32
+ * I2C block does not release it. Standard bus recovery on the same pins
+ * (PB8 SCL, PB9 SDA): as open-drain GPIO, clock SCL up to 9 times until SDA
+ * is high, then send STOP, then hand the pins back to I2C1. Display/RTC only;
+ * no control, policy or pin assignment changes. */
+static void i2c_wait(void) { for (volatile uint32_t i = 0; i < 300u; ++i) { } }
+static bool i2c_bus_recover(void) {
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+    gpio(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_OUTPUT_OD, GPIO_NOPULL, 0u);
+    i2c_wait();
+    for (unsigned i = 0; i < 9u && HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) == GPIO_PIN_RESET; ++i) {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET); i2c_wait();
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); i2c_wait();
+    }
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET); i2c_wait();   /* STOP: SDA low->high */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); i2c_wait();     /* while SCL is high */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); i2c_wait();
+    return HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) == GPIO_PIN_SET;
+}
+static bool i2c_setup(void) {
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_I2C1_CLK_ENABLE();
+    __HAL_RCC_I2C1_FORCE_RESET();
+    (void)i2c_bus_recover();          /* best effort; HAL_I2C_Init below still decides */
+    __HAL_RCC_I2C1_RELEASE_RESET();
+    gpio(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_NOPULL, GPIO_AF4_I2C1);
+    memset(&vc_hi2c1, 0, sizeof(vc_hi2c1));
+    vc_hi2c1.Instance = I2C1;
+    vc_hi2c1.Init.ClockSpeed = 100000u;
+    vc_hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    vc_hi2c1.Init.OwnAddress1 = 0u;
+    vc_hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    vc_hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    vc_hi2c1.Init.OwnAddress2 = 0u;
+    vc_hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    vc_hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    return HAL_I2C_Init(&vc_hi2c1) == HAL_OK;
+}
+/* Called by the platform before an OLED reconnect attempt (every 5 s while
+ * offline). A failure here never stops the board; the next retry tries again. */
+bool board_i2c_recover(void) {
+    if (!initialized || failed) return false;
+    return i2c_setup();
+}
+#endif
+
 #if VC_ENABLE_SERVO || VC_ENABLE_MOTORS
 static bool timer_clock(bool apb2, uint32_t *hz) {
     bool timpre = (RCC->DCKCFGR & RCC_DCKCFGR_TIMPRE) != 0u;
@@ -174,21 +222,7 @@ bool board_init(void) {
 #endif
 
 #if VC_ENABLE_RTC || VC_ENABLE_OLED
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    __HAL_RCC_I2C1_FORCE_RESET();
-    __HAL_RCC_I2C1_RELEASE_RESET();
-    gpio(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_NOPULL, GPIO_AF4_I2C1);
-    memset(&vc_hi2c1, 0, sizeof(vc_hi2c1));
-    vc_hi2c1.Instance = I2C1;
-    vc_hi2c1.Init.ClockSpeed = 100000u;
-    vc_hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-    vc_hi2c1.Init.OwnAddress1 = 0u;
-    vc_hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-    vc_hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-    vc_hi2c1.Init.OwnAddress2 = 0u;
-    vc_hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-    vc_hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-    if (HAL_I2C_Init(&vc_hi2c1) != HAL_OK) return fail();
+    if (!i2c_setup()) return fail();
 #endif
     board_kill();
     return true;
