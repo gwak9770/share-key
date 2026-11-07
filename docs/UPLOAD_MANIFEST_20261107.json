@@ -6,52 +6,63 @@
     {
       "path": "firmware/stm32/Core/Inc/board.h",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Inc/board.h",
-      "sha256": "78e03900264d2307a3b1264cce680a5bfc2ad3935c55a659f2cf5dbbbdaa9f5c"
+      "sha256": "78e03900264d2307a3b1264cce680a5bfc2ad3935c55a659f2cf5dbbbdaa9f5c",
+      "uploaded_sha256": "78e03900264d2307a3b1264cce680a5bfc2ad3935c55a659f2cf5dbbbdaa9f5c"
     },
     {
       "path": "firmware/stm32/Core/Inc/config.h",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Inc/config.h",
-      "sha256": "289d9200fb3a5a67c86456f39d69cc9a15b3721ef85fc138c4ad176b2556672f"
+      "sha256": "289d9200fb3a5a67c86456f39d69cc9a15b3721ef85fc138c4ad176b2556672f",
+      "uploaded_sha256": "c607cd4659f9d77ad1a9b7b8ac956554f194ae90faa7f84b04f77753c544cef0"
     },
     {
       "path": "firmware/stm32/Core/Src/board.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/board.c",
-      "sha256": "97ec99c3f4e64f9e78cc54196b08726c78bdf519800aac656f5c8d36e39b0822"
+      "sha256": "97ec99c3f4e64f9e78cc54196b08726c78bdf519800aac656f5c8d36e39b0822",
+      "uploaded_sha256": "97ec99c3f4e64f9e78cc54196b08726c78bdf519800aac656f5c8d36e39b0822"
     },
     {
       "path": "firmware/stm32/Core/Src/oled.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/oled.c",
-      "sha256": "54859ba9381f52e73cc611bdfddbf2503c669b03a450c7bba61ce605190bfbda"
+      "sha256": "54859ba9381f52e73cc611bdfddbf2503c669b03a450c7bba61ce605190bfbda",
+      "uploaded_sha256": "03a4f92333553b76e9519d7d9dadf8c667267bca6aa3a0dd97202daba765f869"
     },
     {
       "path": "firmware/stm32/Core/Src/port_stm32.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/port_stm32.c",
-      "sha256": "7d081386021f2daf8e84124ae209672b82d740708768f22559b53b6241c6934e"
+      "sha256": "7d081386021f2daf8e84124ae209672b82d740708768f22559b53b6241c6934e",
+      "uploaded_sha256": "5e28922195d40708eaed80cc2dcc906a95bca0294cfce27b8733491d33920b0e"
     },
     {
       "path": "firmware/stm32/Core/Src/vehicle_app.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/vehicle_app.c",
-      "sha256": "20f471e9cd11507e74eb01f64d980403eec06edef16f477b9efee9bf208d9b10"
+      "sha256": "20f471e9cd11507e74eb01f64d980403eec06edef16f477b9efee9bf208d9b10",
+      "uploaded_sha256": "9b1b1db8f989026f1e5bd0d2be021cdcb68ad362cd8d863b1077f36960362754"
     },
     {
       "path": "firmware/stm32/tests/test_app.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/tests/test_app.c",
-      "sha256": "54bbd7ce0fad4f9f3069adf541e272cf3ae89049d8fabd26eb6f73d456db2726"
+      "sha256": "54bbd7ce0fad4f9f3069adf541e272cf3ae89049d8fabd26eb6f73d456db2726",
+      "uploaded_sha256": "b1ee9fb7e842fd1cb70d125526433afbe4d43c728f7b641f48e991889f751c0d"
     },
     {
       "path": "firmware/stm32/tests/test_oled.c",
       "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/tests/test_oled.c",
-      "sha256": "3e64add54522d9148c0b004a78c7435d77c657efc2f5c9e5ab171d56071e27bf"
+      "sha256": "3e64add54522d9148c0b004a78c7435d77c657efc2f5c9e5ab171d56071e27bf",
+      "uploaded_sha256": "bd4a67e820a265cf93fbccac6b8f374cf9d268a595db0f9daf1d48534a499ba6"
     },
     {
       "path": "firmware/stm32/docs/SERVO_90_1106_KO.md",
       "source": "work/servo_90_1106/README_KO.md",
-      "sha256": "af0eb4cbaa02618a1abdb806d3766e236dc31588e7e803bcbb832d7b2e28eb9b"
+      "sha256": "af0eb4cbaa02618a1abdb806d3766e236dc31588e7e803bcbb832d7b2e28eb9b",
+      "uploaded_sha256": "af0eb4cbaa02618a1abdb806d3766e236dc31588e7e803bcbb832d7b2e28eb9b"
     },
     {
       "path": "firmware/stm32/docs/SERVO_90_1106.patch",
       "source": "work/servo_90_1106/servo_90_1106.patch",
-      "sha256": "2d2b1ee36d8bb15fa3d67379cc934665ff7d8db266cc2d81b09bacbd7807b65e"
+      "sha256": "2d2b1ee36d8bb15fa3d67379cc934665ff7d8db266cc2d81b09bacbd7807b65e",
+      "uploaded_sha256": "2d2b1ee36d8bb15fa3d67379cc934665ff7d8db266cc2d81b09bacbd7807b65e"
     }
-  ]
+  ],
+  "newline_policy": "Modified existing files preserve the GitHub baseline newline style; source sha256 is before newline normalization. uploaded_sha256 is the stored copy."
 }
