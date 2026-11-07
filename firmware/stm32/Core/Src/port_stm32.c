@@ -139,8 +139,10 @@ void vc_platform_service(const Controller *c, const VehicleDisplay *display) {
     if ((uint32_t)(now - last_rtc) >= 1000u) { last_rtc = now; (void)rtc_read(&rtc_time); }
 #endif
 #if VC_ENABLE_OLED
-    oled_status(c, &rtc_time, display); /* Changed frames start without a 500ms gate. */
-    if (!oled_online() && (uint32_t)(now - last_retry) >= 5000u) { last_retry = now; oled_init(); }
+    oled_status(c, &rtc_time, display); /* 1106 (곽동규): changed frames start without a 500ms gate. */
+    if (!oled_online() && (uint32_t)(now - last_retry) >= 5000u) {
+        last_retry = now; (void)board_i2c_recover(); oled_init(); /* 1104: free a stuck bus first */
+    }
     oled_service(); /* A bounded small I2C chunk, never a full-screen busy loop. */
 #endif
 #endif

@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-07",
+  "baseline_commit": "cd4ef8157b2abbae937665b9350c71d0c978532d",
+  "scope": "Latest locally available LIVE door-state firmware plus servo calibration; not confirmed deployed team integration",
+  "files": [
+    {
+      "path": "firmware/stm32/Core/Inc/board.h",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Inc/board.h",
+      "sha256": "78e03900264d2307a3b1264cce680a5bfc2ad3935c55a659f2cf5dbbbdaa9f5c"
+    },
+    {
+      "path": "firmware/stm32/Core/Inc/config.h",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Inc/config.h",
+      "sha256": "289d9200fb3a5a67c86456f39d69cc9a15b3721ef85fc138c4ad176b2556672f"
+    },
+    {
+      "path": "firmware/stm32/Core/Src/board.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/board.c",
+      "sha256": "97ec99c3f4e64f9e78cc54196b08726c78bdf519800aac656f5c8d36e39b0822"
+    },
+    {
+      "path": "firmware/stm32/Core/Src/oled.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/oled.c",
+      "sha256": "54859ba9381f52e73cc611bdfddbf2503c669b03a450c7bba61ce605190bfbda"
+    },
+    {
+      "path": "firmware/stm32/Core/Src/port_stm32.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/port_stm32.c",
+      "sha256": "7d081386021f2daf8e84124ae209672b82d740708768f22559b53b6241c6934e"
+    },
+    {
+      "path": "firmware/stm32/Core/Src/vehicle_app.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/Core/Src/vehicle_app.c",
+      "sha256": "20f471e9cd11507e74eb01f64d980403eec06edef16f477b9efee9bf208d9b10"
+    },
+    {
+      "path": "firmware/stm32/tests/test_app.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/tests/test_app.c",
+      "sha256": "54bbd7ce0fad4f9f3069adf541e272cf3ae89049d8fabd26eb6f73d456db2726"
+    },
+    {
+      "path": "firmware/stm32/tests/test_oled.c",
+      "source": "work/servo_90_1106/stm32_vehicle_control_f429_v2_1103/tests/test_oled.c",
+      "sha256": "3e64add54522d9148c0b004a78c7435d77c657efc2f5c9e5ab171d56071e27bf"
+    },
+    {
+      "path": "firmware/stm32/docs/SERVO_90_1106_KO.md",
+      "source": "work/servo_90_1106/README_KO.md",
+      "sha256": "af0eb4cbaa02618a1abdb806d3766e236dc31588e7e803bcbb832d7b2e28eb9b"
+    },
+    {
+      "path": "firmware/stm32/docs/SERVO_90_1106.patch",
+      "source": "work/servo_90_1106/servo_90_1106.patch",
+      "sha256": "2d2b1ee36d8bb15fa3d67379cc934665ff7d8db266cc2d81b09bacbd7807b65e"
+    }
+  ]
+}
