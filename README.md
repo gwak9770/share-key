@@ -65,7 +65,7 @@
 | `firmware/stm32/examples/servo_test_f429` | 독립 서보 시험 예제. 통합 펌웨어와 구분 |
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.12. PR #2 원문 그대로 반입. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.13. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -234,7 +234,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.12, 관리 권기백. 메시지 형식·판단·핀 변경은 00 선행 PR과 권기백 승인 후 반영 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.13, 관리 권기백. 메시지 형식·판단·핀 변경은 00 선행 PR과 권기백 승인 후 반영 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR·다른 팀원 검토로 처리 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·허락·업로드·검토·병합 절차 |
 | [01 보고 양식](docs/01_report_template.md) / [PR 양식](.github/pull_request_template.md) | 한 일·결정·파일·00과 차이·시험·질문·다음 작업 7항목과 참고. 곽동규의 버전·시각·장비 적용 기록 보완 |
