@@ -65,7 +65,7 @@
 | `firmware/stm32/examples/servo_test_f429` | 독립 서보 시험 예제. 통합 펌웨어와 구분 |
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.13. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.14. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -234,7 +234,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.13, 관리 권기백. 메시지 형식·판단·핀 변경은 00 선행 PR과 권기백 승인 후 반영 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.14, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
 | [01 보고 양식](docs/01_report_template.md) / [PR 양식](.github/pull_request_template.md) | 한 일·결정·파일·00과 차이·시험·질문·다음 작업 7항목과 참고. 곽동규의 버전·시각·장비 적용 기록 보완 |
@@ -251,7 +251,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 추가 문서는 아직 만들지 않았습니다. `docs/STATUS.md`는 구성요소 상태를 모을 필요가 생기면, `CHANGELOG.md`는 릴리스 변경을 정리할 필요가 생기면 제안합니다. 개인 인계를 요청받으면 `docs/handoff/곽동규.md`처럼 각자 파일을 사용합니다. 한 파일을 여러 사람이 동시에 편집하지 않고 PR 보고를 대체하지 않습니다. `.gitignore`는 기존 것을 유지했습니다.
 
-다음 작업은 이 통합 diff 검토 → Commit·Push·PR 허락 → 기백님과 검토·기존 PR #2 반영 경로 정리입니다. 별도로 팀 최신 소스·실제 CubeIDE 프로젝트·적용 증거를 받아 PR #1 후보판과 비교하고 필요한 보드 빌드·업로드·실물 검증을 진행해야 합니다. RTC·영속 저장·모터·기간 제한은 별도 설계·승인 없이 추가하지 않습니다. 현재 자료만으로 재부팅 뒤 제한 유지나 실제 각도·전력·지연 성능을 보장할 수 없습니다.
+다음 작업부터는 요청 범위 안에서 작업 브랜치 생성·수정·검증·Commit·Push·PR까지 별도 허락 없이 진행하고, 최종 main 병합 직전에만 사용자에게 대상 PR·최신 변경·검증 결과를 보여 주고 허락을 받습니다. 설계 문서 관리자나 다른 팀원의 승인 대기는 두지 않습니다. 별도로 팀 최신 소스·실제 CubeIDE 프로젝트·적용 증거를 받아 PR #1 후보판과 비교하고 필요한 보드 빌드·업로드·실물 검증을 진행해야 합니다. RTC·영속 저장·모터·기간 제한 구현은 이번 문서 작업의 범위 밖이며, 해당 작업을 요청받으면 같은 브랜치에서 설계와 코드를 함께 맞춥니다. 현재 자료만으로 재부팅 뒤 제한 유지나 실제 각도·전력·지연 성능을 보장할 수 없습니다.
 
 이전 GitHub 확인에서 main은 protected=false였습니다. 문서 규칙은 GitHub 보호 설정을 대신하지 않습니다. PR 필수(main 직접 Push 차단), force push·삭제 차단을 제안하며(팀원 리뷰 필수는 두지 않음) 이번에 설정은 변경하지 않았습니다. 자동 CI는 실제 환경과 검사 실행을 확인한 뒤 검토합니다.
 
