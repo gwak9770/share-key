@@ -11,7 +11,7 @@
 1. 자신의 PC에 받은 저장소 루트를 엽니다. 이 PC에서는 `C:\Users\gwak9\Documents\share-key`이며, 다른 팀원은 자신의 경로를 사용합니다.
 2. **Codex:** 저장소 폴더를 프로젝트로 선택해 작업을 시작합니다. CLI를 쓰는 경우 저장소 루트 터미널에서 `codex`를 실행합니다.
 3. **Claude Code:** 저장소 루트 터미널에서 `claude`를 실행합니다. `/memory`로 지침 파일 위치를 확인하고, AGENTS의 공통 규칙을 읽었는지 확인합니다.
-4. 첫 요청 예시: “AGENTS.md와 README.md를 읽고 현재 브랜치·Git 변경 사항부터 확인해줘. 기존 변경은 보존하고, 로컬 수정·검토까지만 진행해줘. Commit·Push·PR 생성·Merge는 하지 마.”
+4. 첫 요청 예시: “AGENTS.md와 README.md를 읽고 현재 브랜치·Git 변경 사항부터 확인해줘. 기존 변경은 보존하고, 작업 브랜치에서 Commit·Push·PR까지 진행하고, main 병합은 하지 마.”
 
 두 도구에서 같은 파일을 동시에 수정하지 말고, 도구를 바꿀 때 브랜치·미커밋 diff·인계 내용을 다시 확인합니다. 공동 사용 설정은 PR #3으로 main에 반영됐고 이번 통합에서도 유지합니다. 이 PC에서는 Claude Code 실행·import 로딩을 직접 시험하지 않았습니다.
 
@@ -159,7 +159,7 @@ origin이 팀 저장소인지 먼저 확인합니다. fetch 실패 시 **최신 
 
 ## 7. 팀 작업 순서
 
-브랜치는 작업 공간, Commit은 변경 기록, Push는 GitHub 업로드, PR은 검토 요청, Merge는 main 반영입니다.
+브랜치는 작업 공간, Commit은 변경 기록, Push는 GitHub 업로드, PR은 main 병합 요청, Merge는 main 반영입니다.
 
 1. 00의 관련 절·현재 상태·관련 PR·요청된 개인 인계·실제 코드를 확인합니다. 미커밋 변경은 보존합니다. 임의 stash·reset·clean·복원은 하지 않습니다.
 2. 같은 작업의 브랜치·PR이면 이어갑니다. 새 작업이고 작업 폴더가 깨끗할 때만 다음 명령을 사용합니다. 아래 브랜치 이름은 예시이며 이미 있으면 재생성하지 않습니다.
@@ -171,8 +171,8 @@ origin이 팀 저장소인지 먼저 확인합니다. fetch 실패 시 **최신 
 
    로컬 main을 먼저 갱신하는 방식이라면 `git switch main` → `git pull --ff-only origin main` 후 새 브랜치를 만듭니다. 분기·충돌 시 강제로 맞추지 않습니다. 다른 작업이 남아 있으면 독립 worktree 등을 검토합니다.
 3. 필요한 파일만 수정 → 변경에 맞는 기존 시험·빌드 검사 → 결과·한계·다음 작업 기록 → `git diff --check`, `git diff`, `git status` 검토 순서로 진행합니다.
-4. **기본 흐름은 수정 → 검증 → Commit → 작업 브랜치 Push → PR입니다.** AI는 먼저 변경·검증·제한 사항·업로드 범위를 보여 주고 Commit·Push·PR 허락을 받은 뒤 진행합니다. 기존 허락이 같은 단계·범위를 포함하면 다시 묻지 않습니다. 허락 전에는 로컬 검토에서 멈춥니다.
-5. 사용자가 해당 단계를 허용한 뒤에만 아래를 진행합니다. 경로는 이번 작업 파일만 명시하고 `git diff --cached`에서 신규 파일과 비밀정보도 확인합니다.
+4. **기본 흐름은 수정 → 검증 → Commit → 작업 브랜치 Push → PR → (사용자 확인) → main 병합입니다.** 자기 작업 브랜치에서는 AI가 사용자 허락 없이 PR 생성까지 진행합니다. 팀원 리뷰·승인은 받지 않습니다.
+5. Commit할 때 경로는 이번 작업 파일만 명시하고 `git diff --cached`에서 신규 파일과 비밀정보도 확인합니다.
 
    ```powershell
    git add README.md AGENTS.md CLAUDE.md
@@ -181,8 +181,8 @@ origin이 팀 저장소인지 먼저 확인합니다. fetch 실패 시 **최신 
    git push -u origin HEAD
    ```
 
-6. 기백님 방식대로 작업 기록은 [01 양식](docs/01_report_template.md)을 따른 PR 본문에 씁니다. 같은 작업의 열린 PR이 있으면 갱신하고, 없으면 `main` 대상 **Draft PR(검토 전 초안)**을 만듭니다. [기존 양식](.github/pull_request_template.md)에 문제·변경·버전/기반 SHA·시험 결과·실물 여부·남은 위험을 담습니다. main 직접 Push·자동 Merge·자동 Merge 예약은 하지 않습니다.
-7. 다른 팀원 검토와 필요한 검증을 마친 뒤 담당자가 Merge합니다. AI Merge에는 **대상 PR과 최신 변경에 대한 별도 명시 지시**가 필요합니다. 직전에 main·PR 최신 상태, 충돌, 검증 결과를 다시 확인합니다. “코드가 괜찮다”는 Merge 지시가 아닙니다.
+6. 기백님 방식대로 작업 기록은 [01 양식](docs/01_report_template.md)을 따른 PR 본문에 씁니다. 같은 작업의 열린 PR이 있으면 갱신하고, 없으면 `main` 대상 **Draft PR(초안)**을 만듭니다. [기존 양식](.github/pull_request_template.md)에 문제·변경·버전/기반 SHA·시험 결과·실물 여부·남은 위험을 담습니다. main 직접 Push·자동 Merge·자동 Merge 예약은 하지 않습니다.
+7. 필요한 검증을 마친 뒤 main 병합은 **AI가 사용자에게 묻고, 사용자가 대상 PR과 최신 변경에 대해 명시적으로 허락하면** 진행합니다. 직전에 main·PR 최신 상태, 충돌, 검증 결과를 다시 확인합니다. “코드가 괜찮다”는 병합 허락이 아닙니다.
 
 빈 저장소이거나 최초 Commit이 없다면 위 절차를 사용할 수 없습니다. origin·기본 브랜치·초기 반입 범위를 확인하고 첫 Commit·원격 초기화 방법을 사용자와 정한 뒤 진행합니다. 이번 저장소에는 이미 이력이 있으므로 해당하지 않습니다.
 
@@ -235,8 +235,8 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
 | [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.13, 관리 권기백. 메시지 형식·판단·핀 변경은 00 선행 PR과 권기백 승인 후 반영 |
-| [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR·다른 팀원 검토로 처리 |
-| [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·허락·업로드·검토·병합 절차 |
+| [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
+| [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
 | [01 보고 양식](docs/01_report_template.md) / [PR 양식](.github/pull_request_template.md) | 한 일·결정·파일·00과 차이·시험·질문·다음 작업 7항목과 참고. 곽동규의 버전·시각·장비 적용 기록 보완 |
 | README 8절 | main 기준판·후보판·적용판 식별과 수신·호환성·검증 기록 |
 | PR / Issue / 요청된 개인 인계 | 변경 보고는 PR, 질문·요청·버그는 Issue. 별도 개인 인계는 요청받은 경우에만 보조 기록 |
@@ -253,7 +253,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 다음 작업은 이 통합 diff 검토 → Commit·Push·PR 허락 → 기백님과 검토·기존 PR #2 반영 경로 정리입니다. 별도로 팀 최신 소스·실제 CubeIDE 프로젝트·적용 증거를 받아 PR #1 후보판과 비교하고 필요한 보드 빌드·업로드·실물 검증을 진행해야 합니다. RTC·영속 저장·모터·기간 제한은 별도 설계·승인 없이 추가하지 않습니다. 현재 자료만으로 재부팅 뒤 제한 유지나 실제 각도·전력·지연 성능을 보장할 수 없습니다.
 
-이전 GitHub 확인에서 main은 protected=false였습니다. 문서 규칙은 GitHub 보호 설정을 대신하지 않습니다. PR 필수, 다른 팀원 1명 리뷰, 추가 Commit 시 승인 무효화, force push 차단을 제안하며 이번에 설정은 변경하지 않았습니다. 자동 CI는 실제 환경과 검사 실행을 확인한 뒤 검토합니다.
+이전 GitHub 확인에서 main은 protected=false였습니다. 문서 규칙은 GitHub 보호 설정을 대신하지 않습니다. PR 필수(main 직접 Push 차단), force push·삭제 차단을 제안하며(팀원 리뷰 필수는 두지 않음) 이번에 설정은 변경하지 않았습니다. 자동 CI는 실제 환경과 검사 실행을 확인한 뒤 검토합니다.
 
 기존 곽동규 문서 작업에서는 로컬 링크·경로·명령·diff를 검토했고 PC/OLED/ARM 도구 3개의 --help를 확인했습니다. 기백님 PR #2의 시험 보고는 상태표에서 별도 구분했습니다. 이번 통합도 문서 검토 범위이며 펌웨어 시험·ARM/CubeIDE 빌드·업로드·실물 시험·Claude Code 실제 import 로딩 시험은 미수행입니다. 초안 검토 뒤 사용자의 main 반영 지시를 받았으며 최종 반영 상태는 통합 PR과 Git 이력으로 추적합니다.
 
