@@ -48,7 +48,7 @@ PR 본문은 [.github/pull_request_template.md](.github/pull_request_template.md
 - 온라인 사용·복구, 오프라인 4회 허용 후 5·6회 거부, 온라인 복귀, 해제·재잠금, OLED 상태
 - 실패 조건과 로그의 비밀정보 제거 여부
 
-인증·판단 `sharekey.c/h`·`sk_crypto.c/h`, 공통 메시지, 핀 또는 `config.h`를 바꾸면 PR 본문 4번에 꼭 적고, 병합 뒤 팀에 알립니다(확인 대기 없음). 판단 코드는 `firmware/stm32/` 한 곳에서 관리하고, `sharekey.c/h` 쌍의 버전과 `vendor/sharekey/SOURCE_MANIFEST.json` 해시를 같은 커밋에서 맞춥니다. 메시지 형식·판단 규칙·핀 배치를 바꿔야 하면 같은 작업 브랜치에서 `docs/00_master_design.md`와 코드를 함께 맞추고 PR 본문에 영향과 검증 결과를 적습니다. 설계 문서만 별도 선행 병합하거나 관리자의 사전 승인을 기다리지 않습니다. main 최종 병합 때만 사용자 허락을 받습니다.
+인증·판단 `sharekey.c/h`·`sk_crypto.c/h`, 공통 메시지, 핀 또는 `config.h`를 바꾸면 PR 본문 4번에 꼭 적고, 병합 뒤 팀에 알립니다(확인 대기 없음). 판단 코드는 `firmware/stm32/` 한 곳에서 관리하고, `sharekey.c/h` 쌍의 버전과 `vendor/sharekey/SOURCE_MANIFEST.json` 해시를 같은 커밋에서 맞춥니다. 메시지 형식·판단 규칙·핀 배치를 바꿔야 하면 같은 작업 브랜치에서 `docs/00_master_design.md`와 코드를 함께 맞추고 PR 본문에 영향과 검증 결과를 적습니다. 설계 문서만 별도 선행 병합하거나 관리자의 사전 승인을 기다리지 않습니다. main 최종 병합 때만 사용자 허락을 받습니다. 00을 고친 PR은 작업 중 버전을 `v0.3.x (병합 때 확정)`으로 두고, 병합 직전에 main의 최신 00 버전을 확인해 다음 번호를 붙입니다.
 
 ## GitHub 관리자가 인증 후 할 일
 
