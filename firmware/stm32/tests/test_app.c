@@ -698,6 +698,27 @@ static void test_mode_select_drops_buffered_rx(void) {
 #endif
 
 /* Regression: no open request after SYNC; real signed packets drive UI. */
+/* 1106: debounced door switch is reported once per change as a debug log for
+ * the demo page; bounce shorter than DEBOUNCE_MS is never reported. */
+static size_t door_state_logs(const char *which) {
+    size_t n = 0;
+    for (size_t i = 0; i < log_count; ++i) if (strstr(logs[i], which)) ++n;
+    return n;
+}
+static void test_door_state_log(void) {
+    reset_app();
+    assert(door_state_logs("DOOR STATE CLOSED") == 1 && door_state_logs("DOOR STATE OPEN") == 0);
+    input_state.door_closed = false; advance(5);
+    input_state.door_closed = true; advance(DEBOUNCE_MS + 5);       /* bounce */
+    assert(door_state_logs("DOOR STATE OPEN") == 0);
+    set_door(false);
+    assert(door_state_logs("DOOR STATE OPEN") == 1);
+    advance(100); assert(door_state_logs("DOOR STATE OPEN") == 1);  /* once per change */
+    set_door(true);
+    assert(door_state_logs("DOOR STATE CLOSED") == 2);
+    assert(!vehicle_app_controller()->moving);                      /* log only, no actuation */
+}
+
 static void test_live_key_display(void) {
     char sync[256], replay[256], response[160];
     reset_app(); register_key(); heartbeat();
@@ -758,6 +779,7 @@ static void test_live_key_display(void) {
 
 int main(void) {
     test_live_key_display();
+    test_door_state_log();
     test_heartbeat_and_servo_bridge();
     test_policy_count_duplicate_and_sync();
     test_tamper_and_replay();

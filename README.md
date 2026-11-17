@@ -46,7 +46,7 @@
 | STM32 / 과거 PC 검증 | 11/6 기록에 MSVC 호스트 19/19 통과, 가상 I2C 검사 기재 | [OLED 변경 기록](firmware/stm32/docs/OLED_LIVE_1106_KO.md). 이번 문서 작업에서 펌웨어 시험 재실행 안 함 |
 | STM32 / 보드 빌드 | 현재 main 코드 전체의 ARM/CubeIDE 빌드 성공은 미확인 | 같은 11/6 기록은 해당 수정본 ARM·CubeIDE 빌드 미수행을 명시. [과거 ARM 결과](firmware/stm32/build_support/)를 현재 결과로 사용하지 않음 |
 | STM32 / 업로드·실물 | 현재 장비에 올린 버전과 실제 동작 미확인 | [11/4 팀 전달 기록](docs/history/gwak_team_notice_20261104.md)에 이전 1102판 실물 보고가 있으나 현재 main의 성공 증거는 아님 |
-| STM32 / 최신 확인 후보판 | PR #1의 LIVE 문 상태·I2C 복구·서보 900/2100μs 보정. 열린 PR, 미병합 | [PR #1](https://github.com/gwak9770/share-key/pull/1), head `2e692d91e15d1d210e7f5bcaf1fb577dcd4e347e`. PC 19/19·OLED 5/5 보고. OLED 5개는 19개와 중복. 보드 빌드·업로드·실물 각도 미확인 |
+| STM32 / 최신 확인 후보판 | PR #1(곽동규)의 LIVE 문 상태·I2C 복구를 `fix/servo-final` 브랜치에서 최신 main과 합침. 서보는 PR #1의 900/2100μs 대신 김채희 보드판(`_v6`·`_v7`)에서 실물로 확인한 잠금/해제 2000/1200μs로 확정(D9) | [PR #1](https://github.com/gwak9770/share-key/pull/1) head `2e692d91e15d1d210e7f5bcaf1fb577dcd4e347e`. 결과는 `fix/servo-final` PR 본문에 기록. 이 브랜치 커밋 자체의 보드 빌드·업로드는 미수행 |
 | 서버·Pi 중계·웹 / 코드 | [`sharekey/`](sharekey/)에 `sharekey_1106c` 판 원본 반입(11/16). PC 모의 `demo.py`·`demo.py --relay` 각 1회 A 6/6·C 4/6 | 11/6~9 실물 시연에 쓴 판(`web_app.py` `d3a94a81…`). `demo.py --relay-c`는 C PC 하네스 없음으로 미수행. 이번 반입 뒤 Pi 실물 재확인 미수행 |
 | 팀 설계·보고 / 로컬 통합 | 00 v0.3.12와 01 양식을 PR #2에서 가져오고 공통 규칙·보고 양식 통합. 통합 반영 상태는 Git 이력과 통합 PR에서 확인 | [00](docs/00_master_design.md), [01](docs/01_report_template.md), PR #2 `4bf62ea`. 00 원문은 보존, 보고 양식은 버전·시간·장비 적용 항목 보완 |
 | 기백님 PC 시험 보고 / 과거 결과 | PR #2에서 macOS 호스트 19/19·OLED 5/5 통과 보고. 보드 빌드·업로드·실물은 미수행으로 기재 | [PR #2](https://github.com/gwak9770/share-key/pull/2). 이번 작업의 재실행 결과가 아님. 정확한 시험 시각 미상 |
@@ -66,7 +66,7 @@
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.16. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.17. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -95,7 +95,7 @@
 | PC 시험 | Python 3 + GCC/Clang 또는 MSVC. 이번 PC의 Python은 3.11.9, 현재 터미널 PATH에서 gcc·cl·arm-none-eabi-gcc는 찾지 못함 |
 | 통신 | 적용 문서 기준 USART3 PD8/PD9, 115200 8N1. 실제 COM·장치 경로는 매번 확인 |
 | 구동·입력·표시 | 코드·문서 기준 SG90 서보 PD14, 문 입력 PF12, SSD1306용 128×64 OLED 드라이버. 00에는 2.42인치 SSD1309의 과거 실물 보고가 있음. 실제 부품·배선·전원은 장비 담당 확인 필요 |
-| main 기본 설정 | C 정책, 서보·재잠금·큰 글자 OLED 켬. 모터·RTC·반납 버튼·watchdog·A/C 부팅 선택 기본 끔. 잠금/해제 1200/1800μs |
+| main 기본 설정 | C 정책, 서보·재잠금·큰 글자 OLED 켬. 모터·RTC·반납 버튼·watchdog·A/C 부팅 선택 기본 끔. 잠금/해제 2000/1200μs(김채희 보드판 실물 확인값, 시험 시각·횟수 미상) |
 | Raspberry Pi | 00과 기백님 팀 환경 기준 Pi 5. 현재 OS·중계 설치판·네트워크 설정 미확인 |
 
 핀·클록·전원은 [CubeIDE 적용 안내](firmware/stm32/docs/INTEGRATE_CUBEIDE_KO.md), [배선·시험 안내](firmware/stm32/docs/WIRING_AND_TEST_KO.md)와 실제 보드를 대조합니다. 오래된 [펌웨어 README](firmware/stm32/README_KO.md)에는 OLED 기본 꺼짐 등 초기 설명이 남아 있으므로 현재 `config.h`와 후속 변경 기록을 함께 확인합니다.
@@ -109,7 +109,7 @@
 | Grove Micro Switch | 배송 대기 (같은 주문, 해외) | 문 닫힘 감지 PF12 | 키트 택트 스위치(PF12–GND, VC_DOOR_ACTIVE_LOW 1) |
 | Grove → 암 점퍼 케이블 | 배송 대기 (같은 주문, 해외) | Grove 스위치 연결 | 점퍼선 직결 |
 | 4×AA 배터리 홀더(커버형), AA 건전지 4개 | 배송 대기 (같은 주문) | 서보·모터 6V | 지금 쓰는 4구 홀더 |
-| DS3231 RTC (키트) | 보유, 미연결 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
+| DS3231 RTC (키트) | 보유, 미연결. 김채희 보관(11/17 확인). 칩 DS3231SN이 붙은 'DS3231 For Pi' 소형 모듈(5핀 소켓, I2C 주소 0x68), 뒷면 12mm급 동전 전지(CR1220 추정, 규격·잔량 미확인). 핀 인쇄·전압 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
 | SG90 서보, 택트 스위치, LED (키트) | 보유, 사용 중 | 문 잠금·입력·표시 | — |
 | OLED 2.42" SSD1309 | 보유, 사용 중 | 상태 표시 | — |
 | 끝점 스위치 | 미주문 | 잠금 위치 확인 PF13/PF14 | 시간 추정(LOCK EST) |
@@ -257,7 +257,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.16, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.17, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |

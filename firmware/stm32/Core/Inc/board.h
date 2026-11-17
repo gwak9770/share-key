@@ -35,5 +35,8 @@ bool board_faulted(void);
 bool board_return_pressed(void);
 bool board_mode_button(void);
 void board_leds(bool allow, bool online, bool deny);
+#if VC_ENABLE_RTC || VC_ENABLE_OLED
+bool board_i2c_recover(void);   /* 1104: I2C bus recovery + I2C1 re-init (display/RTC only) */
+#endif
 
 #endif
