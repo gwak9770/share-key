@@ -47,7 +47,7 @@
 | STM32 / 보드 빌드 | 현재 main 코드 전체의 ARM/CubeIDE 빌드 성공은 미확인 | 같은 11/6 기록은 해당 수정본 ARM·CubeIDE 빌드 미수행을 명시. [과거 ARM 결과](firmware/stm32/build_support/)를 현재 결과로 사용하지 않음 |
 | STM32 / 업로드·실물 | 현재 장비에 올린 버전과 실제 동작 미확인 | [11/4 팀 전달 기록](docs/history/gwak_team_notice_20261104.md)에 이전 1102판 실물 보고가 있으나 현재 main의 성공 증거는 아님 |
 | STM32 / 최신 확인 후보판 | PR #1의 LIVE 문 상태·I2C 복구·서보 900/2100μs 보정. 열린 PR, 미병합 | [PR #1](https://github.com/gwak9770/share-key/pull/1), head `2e692d91e15d1d210e7f5bcaf1fb577dcd4e347e`. PC 19/19·OLED 5/5 보고. OLED 5개는 19개와 중복. 보드 빌드·업로드·실물 각도 미확인 |
-| 서버·Pi 중계·웹 / 자료 | 현재 main에 실행 소스 없음. 자료 수신 대기 | `cd4ef81` 파일 목록과 [과거 Pi 모의시험 기록](docs/history/곽동규_라즈베리파이세팅_1028.md) 대조. 당시 시험은 Python STM32 시뮬레이터 사용 |
+| 서버·Pi 중계·웹 / 코드 | [`sharekey/`](sharekey/)에 `sharekey_1106c` 판 원본 반입(11/16). PC 모의 `demo.py`·`demo.py --relay` 각 1회 A 6/6·C 4/6 | 11/6~9 실물 시연에 쓴 판(`web_app.py` `d3a94a81…`). `demo.py --relay-c`는 C PC 하네스 없음으로 미수행. 이번 반입 뒤 Pi 실물 재확인 미수행 |
 | 팀 설계·보고 / 로컬 통합 | 00 v0.3.12와 01 양식을 PR #2에서 가져오고 공통 규칙·보고 양식 통합. 통합 반영 상태는 Git 이력과 통합 PR에서 확인 | [00](docs/00_master_design.md), [01](docs/01_report_template.md), PR #2 `4bf62ea`. 00 원문은 보존, 보고 양식은 버전·시간·장비 적용 항목 보완 |
 | 기백님 PC 시험 보고 / 과거 결과 | PR #2에서 macOS 호스트 19/19·OLED 5/5 통과 보고. 보드 빌드·업로드·실물은 미수행으로 기재 | [PR #2](https://github.com/gwak9770/share-key/pull/2). 이번 작업의 재실행 결과가 아님. 정확한 시험 시각 미상 |
 | 영속 저장·기간 정책 / 계획·미통합 | 재부팅 뒤 상태 유지 완료 근거 없음. 현재 제어 통합 설정은 A/C만 허용, RTC 기본 꺼짐 | [sharekey.c](firmware/stm32/Core/Src/sharekey.c)의 RAM 상태·저장 TODO, [config.h](firmware/stm32/Core/Inc/config.h). TODO의 날짜는 완료 증거가 아님 |
@@ -65,13 +65,14 @@
 | `firmware/stm32/examples/servo_test_f429` | 독립 서보 시험 예제. 통합 펌웨어와 구분 |
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.14. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.16. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
 | `.github/pull_request_template.md`, `.gitignore` | 기존 PR 양식, 비밀정보·빌드 결과·개인 설정 등의 제외 규칙 |
 
-현재 main에는 `server.py`, `pi_relay.py`, `web_app.py`, 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
+현재 main에는 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. Python 코드는 `sharekey/`에 있지만 공유 폴더의 `sharekey/stm32/` 판단 사본은 넣지 않았습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
 
 ## 4. 구성과 개발 환경
 
@@ -150,7 +151,13 @@ python tools/check_arm_build.py --cube-root "<설치된 STM32CubeF4 1.28.3 폴�
 4. CubeIDE Clean → Build 결과와 오류·경고를 기록합니다. Run 설정이 **해당 프로젝트에서 방금 만든 ELF**를 가리키는지 확인하고 업로드 결과를 별도로 기록합니다.
 5. 업로드 후 필요한 RESET·키 재등록을 수행하고 실물 시험을 기록합니다. 현재 RAM 기반 상태는 RESET 뒤 유지되지 않으므로 이전 횟수 상태를 전제로 시험하지 않습니다.
 
-서버·Pi·웹은 실행 소스와 의존성 자료 수신 대기입니다. 과거 MD에 있는 외부 ZIP의 실행 명령을 현재 저장소 실행법으로 제공하지 않습니다. 소스를 받은 뒤 실제 `--help`·의존성·설정·포트·실행 결과를 확인해 이 절을 보완합니다.
+서버·Pi·웹 실행법은 [`sharekey/README.txt`](sharekey/README.txt)를 따릅니다. Python 3.8 이상, 표준 라이브러리만 사용하고 Pi에서 실물 보드에 연결할 때만 `pyserial`이 필요합니다. Windows 콘솔에서 한글이 깨지거나 모의 차량이 끊기면 `PYTHONUTF8=1`(또는 `python -X utf8`)로 실행합니다. 실행 중 생기는 `server_state.json`·`keys/`는 Commit하지 않습니다(`.gitignore` 포함).
+
+```sh
+cd sharekey
+python3 demo.py            # 가짜 차량 경로, A·C 결과표
+python3 demo.py --relay    # 앱 → Pi 중계 → STM32 흉내 경로
+```
 
 ## 6. 최신 코드와 실제 적용판 확인
 
@@ -250,7 +257,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.15, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.16, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
@@ -260,7 +267,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 기존 인계는 [11/6 OLED 변경·한계](firmware/stm32/docs/OLED_LIVE_1106_KO.md), [R1 검토](docs/history/01_gwak_r1_recheck_20261104.md), [팀 전달·시험 순서](docs/history/gwak_team_notice_20261104.md), [Pi 모의시험](docs/history/곽동규_라즈베리파이세팅_1028.md), [반입 목록](docs/IMPORT_MANIFEST.json)에서 보존합니다. 각 문서의 대상 코드·시점을 확인합니다.
 
-**00과 실제 저장소:** 00 v0.3.13부터 §9에 저장소 기준(판단 코드는 `firmware/stm32` 한 곳·한 벌)을, §12에 PR 본문 보고를 반영했습니다. §9의 공유 폴더 구조·여러 사본 기록은 과거 기록으로 보존합니다. 서버·중계·웹 Python 코드는 여전히 수신 대기이고, 과거 공유 폴더의 LIVE판과 현재 main 코드도 다릅니다. 차이를 구현 완료로 처리하지 않습니다.
+**00과 실제 저장소:** 00 v0.3.13부터 §9에 저장소 기준(판단 코드는 `firmware/stm32` 한 곳·한 벌)을, §12에 PR 본문 보고를 반영했습니다. §9의 공유 폴더 구조·여러 사본 기록은 과거 기록으로 보존합니다. 서버·중계·웹 Python 코드는 v0.3.16부터 `sharekey/`에 있고, 과거 공유 폴더의 LIVE판과 현재 main 코드도 다릅니다. 차이를 구현 완료로 처리하지 않습니다.
 
 팀 역할은 AGENTS 9절과 00을 따릅니다. 권기백은 PM·설계 관리·보안/판단 검토, 곽동규는 STM32 제어·시험·저장, 김채희는 Pi·STM32 빌드/업로드, 조민선은 실물·보정이 주 영역입니다. 새 역할 배정이나 현재 구현 완료를 뜻하지 않으며 필요에 따라 협업합니다. 곽동규를 발표자로 지정하지 않습니다. 최종 병합 담당은 프로젝트 운영에 맞게 정하고, AI Merge에는 대상 PR과 최신 내용에 대한 별도 사용자 지시가 필요합니다.
 
