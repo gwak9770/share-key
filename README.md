@@ -66,7 +66,7 @@
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.15. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.16. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -257,7 +257,8 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.15, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.16, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
 | [01 보고 양식](docs/01_report_template.md) / [PR 양식](.github/pull_request_template.md) | 한 일·결정·파일·00과 차이·시험·질문·다음 작업 7항목과 참고. 곽동규의 버전·시각·장비 적용 기록 보완 |
@@ -266,7 +267,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 기존 인계는 [11/6 OLED 변경·한계](firmware/stm32/docs/OLED_LIVE_1106_KO.md), [R1 검토](docs/history/01_gwak_r1_recheck_20261104.md), [팀 전달·시험 순서](docs/history/gwak_team_notice_20261104.md), [Pi 모의시험](docs/history/곽동규_라즈베리파이세팅_1028.md), [반입 목록](docs/IMPORT_MANIFEST.json)에서 보존합니다. 각 문서의 대상 코드·시점을 확인합니다.
 
-**00과 실제 저장소:** 00 v0.3.13부터 §9에 저장소 기준(판단 코드는 `firmware/stm32` 한 곳·한 벌)을, §12에 PR 본문 보고를 반영했습니다. §9의 공유 폴더 구조·여러 사본 기록은 과거 기록으로 보존합니다. 서버·중계·웹 Python 코드는 v0.3.15부터 `sharekey/`에 있고, 과거 공유 폴더의 LIVE판과 현재 main 코드도 다릅니다. 차이를 구현 완료로 처리하지 않습니다.
+**00과 실제 저장소:** 00 v0.3.13부터 §9에 저장소 기준(판단 코드는 `firmware/stm32` 한 곳·한 벌)을, §12에 PR 본문 보고를 반영했습니다. §9의 공유 폴더 구조·여러 사본 기록은 과거 기록으로 보존합니다. 서버·중계·웹 Python 코드는 v0.3.16부터 `sharekey/`에 있고, 과거 공유 폴더의 LIVE판과 현재 main 코드도 다릅니다. 차이를 구현 완료로 처리하지 않습니다.
 
 팀 역할은 AGENTS 9절과 00을 따릅니다. 권기백은 PM·설계 관리·보안/판단 검토, 곽동규는 STM32 제어·시험·저장, 김채희는 Pi·STM32 빌드/업로드, 조민선은 실물·보정이 주 영역입니다. 새 역할 배정이나 현재 구현 완료를 뜻하지 않으며 필요에 따라 협업합니다. 곽동규를 발표자로 지정하지 않습니다. 최종 병합 담당은 프로젝트 운영에 맞게 정하고, AI Merge에는 대상 PR과 최신 내용에 대한 별도 사용자 지시가 필요합니다.
 
