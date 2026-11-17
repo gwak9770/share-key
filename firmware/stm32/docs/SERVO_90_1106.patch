@@ -1,0 +1,13 @@
+--- a/Core/Inc/config.h
++++ b/Core/Inc/config.h
+@@ -75,8 +75,8 @@
+ #define SERVO_TIMEOUT_MS 1500u
+ #define SERVO_MIN_SETTLE_MS 100u
+ #define SERVO_TRAVEL_MS 500u
+-#define SERVO_LOCK_US 1200u
+-#define SERVO_UNLOCK_US 1800u
++#define SERVO_LOCK_US 900u
++#define SERVO_UNLOCK_US 2100u
+ #define SERVO_PWM_HZ 50u
+ #define MOTOR_PWM_HZ 10000u
+ #define MOTOR_MAX_PERMILLE 600

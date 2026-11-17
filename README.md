@@ -46,7 +46,7 @@
 | STM32 / 과거 PC 검증 | 11/6 기록에 MSVC 호스트 19/19 통과, 가상 I2C 검사 기재 | [OLED 변경 기록](firmware/stm32/docs/OLED_LIVE_1106_KO.md). 이번 문서 작업에서 펌웨어 시험 재실행 안 함 |
 | STM32 / 보드 빌드 | 현재 main 코드 전체의 ARM/CubeIDE 빌드 성공은 미확인 | 같은 11/6 기록은 해당 수정본 ARM·CubeIDE 빌드 미수행을 명시. [과거 ARM 결과](firmware/stm32/build_support/)를 현재 결과로 사용하지 않음 |
 | STM32 / 업로드·실물 | 현재 장비에 올린 버전과 실제 동작 미확인 | [11/4 팀 전달 기록](docs/history/gwak_team_notice_20261104.md)에 이전 1102판 실물 보고가 있으나 현재 main의 성공 증거는 아님 |
-| STM32 / 최신 확인 후보판 | PR #1의 LIVE 문 상태·I2C 복구·서보 900/2100μs 보정. 열린 PR, 미병합 | [PR #1](https://github.com/gwak9770/share-key/pull/1), head `2e692d91e15d1d210e7f5bcaf1fb577dcd4e347e`. PC 19/19·OLED 5/5 보고. OLED 5개는 19개와 중복. 보드 빌드·업로드·실물 각도 미확인 |
+| STM32 / 최신 확인 후보판 | PR #1(곽동규)의 LIVE 문 상태·I2C 복구·서보 900/2100μs 보정을 `fix/servo-final` 브랜치에서 최신 main과 합침. 서보 최종값(D9)은 실물 확인 뒤 확정 | [PR #1](https://github.com/gwak9770/share-key/pull/1) head `2e692d91e15d1d210e7f5bcaf1fb577dcd4e347e`. 결과는 `fix/servo-final` PR 본문에 기록. 보드 빌드·업로드·실물 각도 미확인 |
 | 서버·Pi 중계·웹 / 코드 | [`sharekey/`](sharekey/)에 `sharekey_1106c` 판 원본 반입(11/16). PC 모의 `demo.py`·`demo.py --relay` 각 1회 A 6/6·C 4/6 | 11/6~9 실물 시연에 쓴 판(`web_app.py` `d3a94a81…`). `demo.py --relay-c`는 C PC 하네스 없음으로 미수행. 이번 반입 뒤 Pi 실물 재확인 미수행 |
 | 팀 설계·보고 / 로컬 통합 | 00 v0.3.12와 01 양식을 PR #2에서 가져오고 공통 규칙·보고 양식 통합. 통합 반영 상태는 Git 이력과 통합 PR에서 확인 | [00](docs/00_master_design.md), [01](docs/01_report_template.md), PR #2 `4bf62ea`. 00 원문은 보존, 보고 양식은 버전·시간·장비 적용 항목 보완 |
 | 기백님 PC 시험 보고 / 과거 결과 | PR #2에서 macOS 호스트 19/19·OLED 5/5 통과 보고. 보드 빌드·업로드·실물은 미수행으로 기재 | [PR #2](https://github.com/gwak9770/share-key/pull/2). 이번 작업의 재실행 결과가 아님. 정확한 시험 시각 미상 |
@@ -95,7 +95,7 @@
 | PC 시험 | Python 3 + GCC/Clang 또는 MSVC. 이번 PC의 Python은 3.11.9, 현재 터미널 PATH에서 gcc·cl·arm-none-eabi-gcc는 찾지 못함 |
 | 통신 | 적용 문서 기준 USART3 PD8/PD9, 115200 8N1. 실제 COM·장치 경로는 매번 확인 |
 | 구동·입력·표시 | 코드·문서 기준 SG90 서보 PD14, 문 입력 PF12, SSD1306용 128×64 OLED 드라이버. 00에는 2.42인치 SSD1309의 과거 실물 보고가 있음. 실제 부품·배선·전원은 장비 담당 확인 필요 |
-| main 기본 설정 | C 정책, 서보·재잠금·큰 글자 OLED 켬. 모터·RTC·반납 버튼·watchdog·A/C 부팅 선택 기본 끔. 잠금/해제 1200/1800μs |
+| main 기본 설정 | C 정책, 서보·재잠금·큰 글자 OLED 켬. 모터·RTC·반납 버튼·watchdog·A/C 부팅 선택 기본 끔. 잠금/해제 900/2100μs(PR #1 보정값, 약 90도 목표, 실물 각도 미확인) |
 | Raspberry Pi | 00과 기백님 팀 환경 기준 Pi 5. 현재 OS·중계 설치판·네트워크 설정 미확인 |
 
 핀·클록·전원은 [CubeIDE 적용 안내](firmware/stm32/docs/INTEGRATE_CUBEIDE_KO.md), [배선·시험 안내](firmware/stm32/docs/WIRING_AND_TEST_KO.md)와 실제 보드를 대조합니다. 오래된 [펌웨어 README](firmware/stm32/README_KO.md)에는 OLED 기본 꺼짐 등 초기 설명이 남아 있으므로 현재 `config.h`와 후속 변경 기록을 함께 확인합니다.

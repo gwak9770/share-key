@@ -1,0 +1,163 @@
+{
+  "date": "2026-11-07",
+  "toolchain": "Windows MSVC /std:c11 /utf-8 /W4",
+  "scope": "Host simulation only; no ARM/CubeIDE build or physical board test",
+  "results": {
+    "host": {
+      "passed": 19,
+      "total": 19,
+      "cases": [
+        {
+          "name": "control_no_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "control_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 1
+        },
+        {
+          "name": "pwm_clock",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "line_reader",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "auth_vectors",
+          "compile": 0,
+          "run": 0,
+          "warnings": 3
+        },
+        {
+          "name": "app_c",
+          "compile": 0,
+          "run": 0,
+          "warnings": 3
+        },
+        {
+          "name": "app_a",
+          "compile": 0,
+          "run": 0,
+          "warnings": 4
+        },
+        {
+          "name": "app_c_motor",
+          "compile": 0,
+          "run": 0,
+          "warnings": 3
+        },
+        {
+          "name": "app_c_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 4
+        },
+        {
+          "name": "app_a_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 5
+        },
+        {
+          "name": "app_c_relock_off",
+          "compile": 0,
+          "run": 0,
+          "warnings": 3
+        },
+        {
+          "name": "app_c_modeselect",
+          "compile": 0,
+          "run": 0,
+          "warnings": 3
+        },
+        {
+          "name": "app_a_modeselect",
+          "compile": 0,
+          "run": 0,
+          "warnings": 4
+        },
+        {
+          "name": "app_a_relock_off",
+          "compile": 0,
+          "run": 0,
+          "warnings": 4
+        },
+        {
+          "name": "oled_large_c",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_large_a",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_large_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 1
+        },
+        {
+          "name": "oled_legacy",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_off",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        }
+      ]
+    },
+    "oled": {
+      "passed": 5,
+      "total": 5,
+      "cases": [
+        {
+          "name": "oled_large_c",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_large_a",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_large_endpoints",
+          "compile": 0,
+          "run": 0,
+          "warnings": 1
+        },
+        {
+          "name": "oled_legacy",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        },
+        {
+          "name": "oled_off",
+          "compile": 0,
+          "run": 0,
+          "warnings": 0
+        }
+      ]
+    }
+  }
+}
