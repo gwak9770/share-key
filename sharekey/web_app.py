@@ -84,18 +84,48 @@ def annotate(cmd, wire):
         e["diff"] = [i for i, (a, b) in enumerate(zip(good, tag)) if a != b]
         if cmd == "replay":
             e["reused_at"] = NONCE_USED.get(f[3])
-        elif cmd in ("open", "start", "return"):
+        elif cmd in ("open", "start", "return", "reauth", "stop"):
             NONCE_USED[f[3]] = now
 
 LOCK = threading.Lock()
-CMDS = {"issue", "register", "open", "start", "return", "tamper", "replay", "revoke", "net"}
+CMDS = {"issue", "register", "open", "start", "return", "reauth", "stop", "tamper", "replay", "revoke", "net"}
 OPT = argparse.Namespace()
+AUTO_LOCK = threading.Lock()
+AUTO_STOP = None
+
+
+def stop_auto_reauth():
+    global AUTO_STOP
+    with AUTO_LOCK:
+        if AUTO_STOP is not None:
+            AUTO_STOP.set()
+        AUTO_STOP = None
+
+
+def start_auto_reauth(kid):
+    global AUTO_STOP
+    stop_auto_reauth()
+    event = threading.Event()
+    with AUTO_LOCK:
+        AUTO_STOP = event
+    def renew():
+        while not event.wait(getattr(OPT, "reauth_period", 60)):
+            result = run("reauth", kid, 4, None)
+            if not result.get("res") or result["res"]["code"] != "A":
+                return
+    threading.Thread(target=renew, daemon=True).start()
 
 
 def run(cmd, kid, limit, net):
     """app.main() 을 그대로 호출하고 출력과 결과를 돌려준다."""
     if cmd == "state":
         return key_state()
+    if cmd == "driving-status":
+        try:
+            with LOCK:
+                return app.driving_status(OPT)
+        except (OSError, ValueError, ConnectionError):
+            return {"ok": False}
     if cmd == "nextkid":                        # 화면용: 이 폴더에서 아직 발급 안 한 다음 번호
         start = int(kid, 16) + 1 if re.fullmatch(r"[0-9A-Fa-f]{1,8}", kid or "") else 1
         used = set()
@@ -161,6 +191,11 @@ def run(cmd, kid, limit, net):
     ok = "실패" not in text and "없음" not in text
     if cmd == "register" and "성공" in text:
         REGISTERED.add(f"{int(kid, 16):08X}")
+    if res and res["code"] == "A":
+        if cmd == "start":
+            start_auto_reauth(kid)
+        elif cmd == "stop":
+            stop_auto_reauth()
     return {"ok": ok, "output": text, "res": res, "wire": wire}
 
 
@@ -194,7 +229,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(400, json.dumps({"ok": False, "error": "bad length"}), "application/json")
         try:
             q = json.loads(self.rfile.read(n))
-            self._quiet = q.get("cmd") == "door"
+            self._quiet = q.get("cmd") in ("door", "driving-status")
             r = run(str(q.get("cmd")), str(q.get("kid", "")), q.get("limit"), q.get("net"))
         except (ValueError, AttributeError):
             r = {"ok": False, "error": "bad json"}
@@ -354,7 +389,9 @@ td.A{color:var(--ok);font-weight:700}td.D,td.H{color:var(--no);font-weight:700}
 <button onclick="go('start')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>시동 걸기</button>
 <button onclick="go('return')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>반납하기</button>
 </div>
-<div class="d" style="margin-top:12px;line-height:1.6">문 닫기·잠그기는 앱 명령이 아니라 실제 문을 닫으면 차가 스스로 잠급니다(문 스위치). 시동은 판단만 하고 모터는 아직 꺼져 있습니다. 반납하면 그 키는 차 안에서 바로 무효가 됩니다.</div></div>
+<div class="row" style="margin-top:10px"><button onclick="go('reauth')">지금 재인증</button><button onclick="go('stop')">시동 끄기</button></div>
+<div id="drivestatus" class="d" style="margin-top:10px">차량 운행 상태 확인 중</div>
+<div class="d" style="margin-top:12px;line-height:1.6">시동 허용 후 앱이 주기적으로 재인증합니다. 실패하면 경고하고, 주행 중에는 강제로 끄지 않습니다. 정차 상태는 차량 USER 버튼의 시연 가정이며 앱에서 바꾸지 않습니다. 기본 빌드는 모터가 꺼져 있어 논리적 운행 상태만 표시합니다.</div></div>
 <div class="card"><div class="ch"><div class="ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M12 8v5M12 16h.01"/></svg></div><div><h3>공격 시험</h3><div class="d">취소된 사용자·공격자가 해 볼 만한 시도</div></div></div>
 <div class="row"><button class="b" onclick="go('tamper')">위조된 요청 보내기</button><button class="b" onclick="go('replay')">가로챈 요청 다시 보내기</button></div>
 <div class="d" style="margin-top:10px">결과는 차가 직접 판단합니다. 아래 "실제로 오간 메시지"에서 무엇이 달랐는지 볼 수 있습니다.</div></div>
@@ -388,7 +425,7 @@ td.A{color:var(--ok);font-weight:700}td.D,td.H{color:var(--no);font-weight:700}
 </main>
 <script>
 const REASON={'00':'정상','01':'위조된 요청 (인증값 불일치)','02':'다시 보낸 요청 (일회용 값 재사용)','03':'취소된 키','04':'유효기간 만료','05':'오프라인 사용 한도 초과','06':'권한 없음','07':'재검증 대기','08':'등록되지 않은 키','09':'반납된 키'};
-const WHAT={issue:'주인 · 공유 키 만들기',register:'이용자 · 차에 키 등록',open:'이용자 · 문 열기',start:'이용자 · 시동 걸기',return:'이용자 · 반납하기',tamper:'공격 · 위조된 요청',replay:'공격 · 가로챈 요청 재전송',revoke:'주인 · 공유 키 취소'};
+const WHAT={issue:'주인 · 공유 키 만들기',register:'이용자 · 차에 키 등록',open:'이용자 · 문 열기',start:'이용자 · 시동 걸기',return:'이용자 · 반납하기',reauth:'이용자 · 운행 재인증',stop:'이용자 · 시동 끄기',tamper:'공격 · 위조된 요청',replay:'공격 · 가로챈 요청 재전송',revoke:'주인 · 공유 키 취소'};
 let n=0,revoked=false,afterOk=0,afterTry=0,netOn=true,limit=4,cur='',pick='';
 const $=i=>document.getElementById(i);
 function kidTile(){$('kidt').textContent=($('kid').value.trim().toUpperCase().replace(/^0+(?=.)/,'')||'-')+'번 키';}
@@ -402,7 +439,7 @@ function dots(left){let h='<span class="t">남은 오프라인 사용</span>';
 function mode(m){cur=m;['A','B','C','D'].forEach(k=>$('m'+k).classList.toggle('cur',k===m));
  $('mode').innerHTML=m+' 방식<div class="ts">'+(m==='A'?'서버 취소만':'횟수 제한')+'</div>';}
 const KIND={REQ:'요청',CHAL:'도전값',RESP:'응답 (서명)',RES:'결과',KEY:'키 등록',KEYOK:'등록 성공',KEYNG:'등록 실패',ERR:'오류'};
-const CMDN={'01':'문 열기','02':'시동','03':'반납'};
+const CMDN={'01':'문 열기','02':'시동','03':'반납','04':'재인증','05':'시동 끄기'};
 function hx(s,diff,cls){if(!diff||!diff.length)return '<span class="hx">'+esc(s)+'</span>';let o='';for(let i=0;i<s.length;i++)o+=diff.includes(i)?'<'+cls+'>'+esc(s[i])+'</'+cls+'>':esc(s[i]);return '<span class="hx">'+o+'</span>';}
 function keyno(h){return String(h).toUpperCase().replace(/^0+(?=.)/,'')+'번 키';}   /* 16진수 그대로: 0000000B -> B */
 function wireRow(e,cmd){const f=e.f,k=f[0];let b='';
@@ -419,8 +456,8 @@ function wireRow(e,cmd){const f=e.f,k=f[0];let b='';
  return '<div class="w"><div class="dir"><b>'+e.from+'</b> → '+e.to+'</div><div><span class="k">'+k+'<small>'+(KIND[k]||'')+'</small></span><div>'+b+'</div></div></div>';}
 function showWire(cmd,o){if(!o.wire||!o.wire.length)return;const v=o.wire.filter(e=>e.from==='차'||e.to==='차');if(!v.length)return;
  $('wirecap').textContent=(WHAT[cmd]||cmd)+' — 앱과 차가 실제로 주고받은 메시지 (판단은 차가 함)';$('wire').innerHTML=v.map(e=>wireRow(e,cmd)).join('');}
-const OKTXT={open:'문 열림 허용',start:'시동 허용',return:'반납 완료',tamper:'허용',replay:'허용'};
-const NOTXT={open:'거부 · 잠김 유지',start:'거부 · 시동 안 걸림',return:'반납 거부',tamper:'거부 · 잠김 유지',replay:'거부 · 잠김 유지'};
+const OKTXT={open:'문 열림 허용',start:'시동 허용',return:'반납 완료',reauth:'재인증 허용',stop:'시동 끄기 허용',tamper:'허용',replay:'허용'};
+const NOTXT={open:'거부 · 잠김 유지',start:'거부 · 시동 안 걸림',return:'반납 거부',reauth:'재인증 거부 · 차량 상태 확인',stop:'시동 끄기 거부',tamper:'거부 · 잠김 유지',replay:'거부 · 잠김 유지'};
 const OKWHY={start:'정상 · 실물 모터는 아직 꺼져 있음(판단만)',return:'이 키는 차 안에서 바로 무효가 됩니다'};
 function door(st){const c=$('car');c.classList.remove('unl','den');if(st)c.classList.add(st);$('door').innerHTML=st==='unl'?'<span style="color:var(--okhi)">잠금 해제</span><div class="ts">문 닫으면 다시 잠김</div>':st==='den'?'<span style="color:var(--nohi)">잠김 유지</span><div class="ts">거부됨</div>':'잠김';}
 let sndOn=true;try{sndOn=localStorage.getItem('sk_snd')!=='0';}catch(e){}
@@ -429,6 +466,8 @@ function tone(f,ms,at){if(!sndOn)return;try{AC=AC||new (window.AudioContext||win
  o.type='square';o.frequency.value=f;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.12,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+ms/1000+0.02);}catch(e){}}
 function toggleSnd(){sndOn=!sndOn;try{localStorage.setItem('sk_snd',sndOn?'1':'0');}catch(e){}$('snd').textContent=sndOn?'소리 켜짐':'소리 꺼짐';}
 function eng(on){const c=$('car');c.classList.toggle('on',on);$('eng').innerHTML=(on?'<span style="color:var(--okhi)">켜짐</span>':'꺼짐')+'<div class="ts">판단만 (모터 끔)</div>';}
+async function pollDriving(){if(document.hidden)return;try{const o=await(await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'driving-status'})})).json();if(!o.ok){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';return;}eng(o.running);$('drivestatus').textContent=o.running?('운행 중 · '+(o.stopped?'정차 가정':'주행 가정')+' · '+(o.warning?'재인증 필요':('재검증 대기까지 '+o.left+'초'))):'운행 세션 꺼짐';}catch(e){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';}}
+setInterval(pollDriving,1000);
 function fx(k){const c=$('car');
  if(k==='unlock'){tone(1760,70,0);tone(1760,70,140);c.classList.remove('hz');void c.offsetWidth;c.classList.add('hz');}
  else if(k==='start'){tone(220,180,0);tone(330,220,160);eng(true);}
@@ -514,8 +553,12 @@ def main():
     p.add_argument("--server", default=f"{app.SERVER_HOST}:{app.SERVER_PORT}")
     p.add_argument("--vehicle", default=f"{app.VEHICLE_HOST}:{app.VEHICLE_PORT}")
     p.add_argument("--door", default="", help="문 상태 알림 주소 (기본: 차량 주소의 포트+1, Pi 중계 9101)")
+    p.add_argument("--reauth-period", type=float, default=60, help="웹 앱의 재인증 전송 간격(초)")
     a = p.parse_args()
+    if a.reauth_period <= 0:
+        p.error("재인증 전송 간격은 양수여야 합니다")
     OPT.server, OPT.vehicle, OPT.door = a.server, a.vehicle, a.door
+    OPT.reauth_period = a.reauth_period
     host = "0.0.0.0" if a.lan else "127.0.0.1"
     srv = ThreadingHTTPServer((host, a.port), H)
     print(f"[웹] http://127.0.0.1:{a.port}  (차량 {a.vehicle}, 서버 {a.server})")
@@ -527,6 +570,8 @@ def main():
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        stop_auto_reauth()
 
 
 if __name__ == "__main__":

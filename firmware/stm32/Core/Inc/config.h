@@ -1,6 +1,23 @@
 #ifndef VEHICLE_CONFIG_H
 #define VEHICLE_CONFIG_H
 
+#ifndef VC_REAUTH_ENABLE
+#define VC_REAUTH_ENABLE 1
+#endif
+#ifndef VC_REAUTH_PERIOD_S
+#define VC_REAUTH_PERIOD_S 60u
+#endif
+#ifndef VC_REAUTH_GRACE_S
+#define VC_REAUTH_GRACE_S 30u
+#endif
+#ifndef VC_STOP_CUTOFF_S
+#define VC_STOP_CUTOFF_S 600u
+#endif
+/* Project demo only: USER toggles an assumed DRIVE/STOP, not measured speed. */
+#ifndef VC_DEMO_DRIVE_INPUT
+#define VC_DEMO_DRIVE_INPUT 1
+#endif
+
 /* Flash defaults ON on the target. Blank media requires authenticated recovery. */
 #ifndef VC_ENABLE_FLASH
 #define VC_ENABLE_FLASH 1

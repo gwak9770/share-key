@@ -92,7 +92,7 @@ def main() -> int:
     elif args.variant == "servo":
         defines += ["-DVC_BUILD_SERVO_TEST=1"]
     elif args.variant == "demo":   # 1103: presentation build (mode select ON)
-        defines += ["-DVC_DEMO_MODE_SELECT=1"]
+        defines += ["-DVC_DEMO_MODE_SELECT=1", "-DVC_STOP_CUTOFF_S=30", "-DVC_DEMO_DRIVE_INPUT=1"]
 
     include_dirs = [ROOT / "Core/Inc", ROOT / "vendor/sharekey", ROOT / "build_support",
                     hal / "Inc", hal / "Inc/Legacy", device / "Include", core_include]

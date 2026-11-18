@@ -43,7 +43,9 @@ cases = [("V1 문열기, nonce 0",         7, 0x01, N0),
          ("V3 시동 (CMD만 다름)",       7, 0x02, N1),
          ("V4 반납",                    7, 0x03, N1),
          ("V5 다른 KID",                8, 0x01, N1),
-         ("V6 다른 nonce",              7, 0x01, N2)]
+         ("V6 다른 nonce",              7, 0x01, N2),
+         ("V7 운행 중 재인증",          7, 0x04, N1),
+         ("V8 시동 끄기",               7, 0x05, N1)]
 for name, kid, cmd, n in cases:
     t, m = auth_tag(kid, cmd, n)
     p(f"[{name}]")

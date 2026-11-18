@@ -139,7 +139,8 @@ void oled_status(const Controller *c,const RtcTime *t,const VehicleDisplay *d) {
     else snprintf(s,sizeof(s),"%c%s DOOR %s",m,TEST_BUILD?"T":"",
                   !c->qualified[0]?"--":c->stable.door_closed?"CL":"OP");
     large_text(0,s);
-    if(d->policy=='K') large_text(16,"KEY OK");
+    if(d->reauth_warning) large_text(16,"REAUTH");
+    else if(d->policy=='K') large_text(16,"KEY OK");
     else if(d->policy=='N') { snprintf(s,sizeof(s),"KEY NG %.2s",d->reason); large_text(16,s); }
     else if(d->policy=='A') large_text(16,"ALLOW");
     else if(d->policy=='D'||d->policy=='H') {
@@ -156,6 +157,7 @@ void oled_status(const Controller *c,const RtcTime *t,const VehicleDisplay *d) {
     else { snprintf(s,sizeof(s),"LEFT %d",d->remaining); large_text(32,s); }
     if(c->fault!=FAULT_NONE) large_text(48,large_fault(c->fault));
     else if(c->moving) large_text(48,"MOVING");
+    else if(d->engine_running) large_text(48,d->stopped?"ENG STOP":"ENG DRIVE");
     else if(d->actuation_attempted && d->actuation!=RES_OK) large_text(48,large_actuation(d->actuation));
     else if(!control_lock_known(c)) large_text(48,"UNKNOWN");
     else {
@@ -169,7 +171,7 @@ void oled_status(const Controller *c,const RtcTime *t,const VehicleDisplay *d) {
     snprintf(s,sizeof(s),"DOOR %s",c->stable.door_closed?"CLOSED":"OPEN"); text(2,s);
     snprintf(s,sizeof(s),"POS %s %s",control_lock_known(c)?(control_is_locked(c)?"LOCK":"UNLOCK"):"UNKNOWN",control_position_estimated(c)?"EST":"SENSOR"); text(3,s);
     snprintf(s,sizeof(s),"MOTOR %d MOVE %u",c->output.motor,c->moving); text(4,s);
-    text(5,control_fault(c->fault));
+    text(5,d->reauth_warning?"REAUTH":d->engine_running?(d->stopped?"ENG ON STOP":"ENG ON DRIVE"):control_fault(c->fault));
     snprintf(s,sizeof(s),"AUTH %c WHY %s LEFT %d",d->policy,d->reason,d->remaining); text(6,s);
     if(d->actuation_attempted) { snprintf(s,sizeof(s),"ACT %s",control_result(d->actuation)); text(7,s); }
     else if(t->valid) { snprintf(s,sizeof(s),"%02u:%02u:%02u",t->hour,t->minute,t->second); text(7,s); }

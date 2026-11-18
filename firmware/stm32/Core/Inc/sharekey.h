@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "sk_store.h"
-#define SK_POLICY_VERSION "20261118-offline-three-misses-1"
+#define SK_POLICY_VERSION "20261118-driving-reauth-1"
 #define SK_OFFLINE_MISSES 3u
 
 #define SK_VID              0x0000CAFEu
@@ -44,10 +44,19 @@ void sk_poll(void);                      /* 주기적으로 호출 (SYNCREQ 송�
 /* Read-only connectivity diagnostics: -1 unknown, 0 offline, 1 online. */
 int sk_online_state(void);
 unsigned sk_sync_misses(void);
+typedef struct {
+    uint32_t kid, elapsed_ms, left_ms;
+    int running, warning, stopped;
+} sk_drive_view_t;
+void sk_drive_view(sk_drive_view_t *view);
+/* Local vehicle input only. Never dispatch from an untrusted wire message. */
+void sk_set_stopped(int stopped);
+void sk_local_engine_stop(void);
+int sk_configure_reauth(uint32_t period_ms,uint32_t grace_ms,uint32_t cutoff_ms);
 
 /* Read-only UI snapshot. No nonce, count, state or authorization mutation.
  * remaining is the raw policy counter (-1 for policies without a count).
- * blocked_reason reports permanent state only: 03 revoked / 09 returned / 00.
+ * blocked_reason: 03 revoked / 09 returned / 07 reauth pending / 00 valid.
  * Returns 0 for an unknown KID or NULL output. Never use this to grant actions. */
 typedef struct { int remaining; char blocked_reason[3]; } sk_key_view_t;
 int sk_get_key_view(uint32_t kid, sk_key_view_t *view);

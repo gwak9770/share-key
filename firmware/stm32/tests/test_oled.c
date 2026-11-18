@@ -141,6 +141,16 @@ int main(void) {
     glyph_at(0,3,0x4927u); /* LOCK */
     snapshot("deny");
     d.policy='H'; strcpy(d.reason,"07");
+    d.engine_running=true; d.reauth_warning=true; c.moving=false; c.fault=FAULT_NONE;
+    oled_status(&c,&time,&d); flush();
+#if VC_OLED_LARGE_TEXT
+    glyph_at(0,1,0x6badu); glyph_at(1,1,0x79a7u); /* REAUTH */
+    glyph_at(0,3,0x79a7u); glyph_at(4,3,0x6b6eu); /* ENG DRIVE */
+    d.stopped=true; oled_status(&c,&time,&d); flush();
+    glyph_at(4,3,0x388eu); /* ENG STOP */
+    snapshot("reauth_stopped");
+#endif
+    d.engine_running=d.reauth_warning=d.stopped=false;
     oled_status(&c,&time,&d); flush(); glyph_at(0,1,0x5bedu); /* HOLD */
     c.moving=true; oled_status(&c,&time,&d); flush();
     glyph_at(0,3,0x5fedu); /* MOVING */

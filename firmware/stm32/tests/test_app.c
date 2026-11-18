@@ -59,8 +59,9 @@ void vc_platform_indicators(bool allow, bool online, bool deny) {
 }
 bool vc_platform_return_pressed(void) { return return_pressed; }
 static uint32_t mode_hold_ms;                 /* USER held for this long from boot */
+static bool local_user_pressed;
 bool vc_platform_mode_button(void) {
-    if (!mode_hold_ms) return false;
+    if (!mode_hold_ms) return local_user_pressed;
     uint32_t step = mode_hold_ms < 100u ? mode_hold_ms : 100u;
     mode_hold_ms -= step; now_ms += step;     /* holding the button takes time */
     return true;
@@ -141,6 +142,7 @@ static void keepalive_for(uint32_t elapsed) {
 }
 
 static void reset_app_with_door(bool closed) {
+    local_user_pressed=false;
     now_ms = 0;
     random_state = 0x12345678u;
     input_state = (Inputs){ closed, false, false, false };
@@ -235,8 +237,9 @@ static void expect_result(unsigned id, char result, const char *reason, unsigned
     }
     assert(vehicle_app_display()->policy == result);
     assert(!strcmp(vehicle_app_display()->reason, reason));
-    int shown = (!strcmp(reason, "03") || !strcmp(reason, "09")) ? 0 :
-                (remaining == 255u ? -1 : (int)remaining);
+    sk_key_view_t view;
+    bool blocked = sk_get_key_view(TEST_KID, &view) && strcmp(view.blocked_reason, "00");
+    int shown = blocked ? 0 : (remaining == 255u ? -1 : (int)remaining);
     assert(vehicle_app_display()->remaining == shown);
 }
 
@@ -465,6 +468,8 @@ static void test_motor_failure_does_not_refund(void) {
     assert(has_log("ACT DISABLED"));
 #endif
     assert(applied.motor == 0);
+    authenticate(2, 'D', "07", 3); /* Repeated START must not refresh the session. */
+    authenticate(5, 'A', "00", 3); /* A new START needs an authenticated stop first. */
     authenticate(1, 'A', "00", 2);
     complete_servo(false);
     heartbeat();
@@ -482,6 +487,39 @@ static void test_motor_failure_does_not_refund(void) {
 #else
     assert(applied.motor == 0 && !vehicle_app_display()->actuation_attempted);
 #endif
+}
+
+static void test_reauth_local_stop_cutoff(void) {
+    reset_app(); register_key(); heartbeat();
+    assert(vehicle_app_request_lock()==RES_OK);
+    complete_servo(true);
+    assert(sk_configure_reauth(100,50,100));
+    authenticate(2,'A',"00",3);
+    advance(MOTOR_RAMP_MS);
+#if VC_ENABLE_MOTORS
+    assert(applied.motor>0);
+#endif
+    keepalive_for(150);
+    assert(vehicle_app_display()->engine_running && vehicle_app_display()->reauth_warning);
+    assert(!vehicle_app_display()->stopped);
+#if VC_ENABLE_MOTORS
+    assert(applied.motor>0); /* Reauth expiry must not cut a driving motor. */
+#endif
+#if VC_DEMO_DRIVE_INPUT
+    local_user_pressed=true; advance(1); advance(DEBOUNCE_MS/2);
+    local_user_pressed=false; advance(1); advance(DEBOUNCE_MS);
+    assert(!vehicle_app_display()->stopped); /* Bounce cannot report STOP. */
+    local_user_pressed=true; advance(1); advance(DEBOUNCE_MS);
+    assert(vehicle_app_display()->stopped);
+    advance(99); assert(vehicle_app_display()->engine_running);
+    advance(1); assert(!vehicle_app_display()->engine_running && applied.motor==0);
+    assert(has_log("REAUTH STOP CUTOFF"));
+    authenticate(2,'D',"07",3);
+#else
+    assert(vehicle_app_display()->engine_running);
+    authenticate(5,'A',"00",3);
+#endif
+    assert(vehicle_app_controller()->fault==FAULT_NONE);
 }
 
 static size_t lock_request_logs(void) {
@@ -805,6 +843,7 @@ int main(void) {
     test_tamper_and_replay();
     test_frames_and_test_build_boundary();
     test_motor_failure_does_not_refund();
+    test_reauth_local_stop_cutoff();
     test_relock_boot_and_unknown();
     test_relock_debounce_and_one_shot();
     test_relock_busy_edge_not_deferred();

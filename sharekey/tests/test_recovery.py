@@ -8,6 +8,9 @@ import sys
 import tempfile
 import time
 import unittest
+import json
+import shutil
+import urllib.request
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +33,7 @@ if DLL:
     DLL.bridge_advance.argtypes = [ctypes.c_uint32]
     DLL.bridge_advance.restype = ctypes.c_char_p
     DLL.bridge_clock.argtypes = [ctypes.c_uint32]
+    DLL.bridge_reauth_config.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32]
 
 
 class Native:
@@ -87,6 +91,15 @@ class Native:
     def offline_logs(self):
         return DLL.bridge_offline_logs()
 
+    def configure_drive(self, period=1000, grace=500, cutoff=1000):
+        return bool(DLL.bridge_reauth_config(period, grace, cutoff))
+
+    def advance(self, ms):
+        DLL.bridge_advance(ms)
+
+    def stopped(self, value):
+        DLL.bridge_stopped(int(value))
+
 
 class PythonVehicle:
     def __init__(self, image=None):
@@ -94,11 +107,12 @@ class PythonVehicle:
         if image is not None:
             self.flash.data[:] = image
         self.actions = 0
+        self.ms = 0
         self.logs = []
         self.boot()
 
     def boot(self):
-        self.core = VehicleCore(log=self.logs.append, storage=FlashJournal(self.flash))
+        self.core = VehicleCore(log=self.logs.append, storage=FlashJournal(self.flash), clock=lambda: self.ms / 1000)
         self.core.actuate = lambda *args: setattr(self, "actions", self.actions + 1)
 
     def send(self, fields):
@@ -139,6 +153,16 @@ class PythonVehicle:
     @property
     def offline_logs(self):
         return self.logs.count("no server response -> OFFLINE")
+
+    def configure_drive(self, period=1000, grace=500, cutoff=1000):
+        return self.core.configure_reauth(period, grace, cutoff)
+
+    def advance(self, ms):
+        self.ms = (self.ms + ms) & 0xFFFFFFFF
+        self.core.poll()
+
+    def stopped(self, value):
+        self.core.set_stopped(value)
 
 
 def register(v, kid=7):
@@ -494,6 +518,174 @@ class OfflineTests(unittest.TestCase):
             self.assertEqual((v.online, v.misses), (1, 0))
 
 
+class ReauthTests(unittest.TestCase):
+    def factories(self):
+        return [PythonVehicle, Native] if DLL else [PythonVehicle]
+
+    def ready(self, factory):
+        v = factory()
+        self.assertEqual(recover(v)[0], "RECOVERED")
+        self.assertTrue(v.configure_drive())
+        return v
+
+    def status(self, v):
+        p = v.send(["DSTATUS"])
+        self.assertEqual(p[0], "DSTATE")
+        return tuple(int(x, 16) for x in p[1:])  # kid, run, warn, stopped, elapsed, left
+
+    def sync(self, v, entries):
+        req = v.sync_request()
+        nonce = bytes.fromhex(req[2])
+        return v.send(["SYNC", f"{VID:08X}", "00000002", hx(nonce), f"{len(entries):02X}",
+                       enc_entries(entries), hx(sync_tag(2, nonce, entries))])
+
+    def test_reauth_counts_no_new_actuation_and_stop_without_count(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            self.assertEqual(use(v, cmd=2)[-1], "03")
+            for left in ("02", "01", "00"):
+                v.advance(1000)
+                self.assertEqual(use(v, cmd=4)[2:], ["A", "00", left])
+            self.assertEqual(v.actions, 1)
+            v.advance(1000)
+            self.assertEqual(use(v, cmd=4)[2:], ["D", "05", "00"])
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            self.assertEqual(use(v, cmd=2)[3], "07")
+            self.assertEqual(use(v, cmd=5)[2:], ["A", "00", "00"])
+            self.assertEqual(v.actions, 2)
+            self.assertEqual(self.status(v)[1], 0)
+
+    def test_timeout_boundary_driving_continues_stopped_cutoff_and_reboot_hold(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            use(v, cmd=2)
+            v.advance(1499)
+            self.assertEqual(self.status(v)[1:3], (1, 0))
+            v.advance(1)
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            v.advance(10000)
+            self.assertEqual(self.status(v)[1], 1)
+            v.stopped(True)
+            v.advance(0)
+            v.advance(999)
+            self.assertEqual(self.status(v)[1], 1)
+            v.advance(1)
+            self.assertEqual(self.status(v)[1], 0)
+            self.assertEqual(use(v, cmd=2)[3], "07")
+            v.boot()
+            self.assertEqual(self.status(v)[1], 0)
+            self.assertEqual(use(v, cmd=2)[3], "07")
+
+    def test_stopped_timer_starts_after_warning_and_resets_on_drive(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            v.stopped(True)
+            use(v, cmd=2)
+            v.advance(1000)
+            self.assertEqual(self.status(v)[1:3], (1, 0))
+            v.advance(500)
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            v.advance(500)
+            v.stopped(False)
+            v.advance(2000)
+            self.assertEqual(self.status(v)[1], 1)
+            v.stopped(True)
+            v.advance(0)
+            v.advance(999)
+            self.assertEqual(self.status(v)[1], 1)
+            v.advance(1)
+            self.assertEqual(self.status(v)[1], 0)
+
+    def test_other_keys_repeated_start_and_forged_auth_cannot_refresh_or_force_hold(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            register(v, 8)
+            self.assertEqual(use(v, cmd=4)[3], "07")
+            use(v, cmd=2)
+            before = v.raw()
+            self.assertEqual(use(v, 8, 4)[3], "07")
+            self.assertEqual(use(v, 8, 5)[3], "07")
+            self.assertEqual(use(v, 8, 2)[3], "07")
+            self.assertEqual(use(v, 7, 2)[3], "07")
+            self.assertEqual(v.raw(), before)
+            nonce = v.send(["REQ", "00000007", "04"])[2]
+            self.assertEqual(v.send(["RESP", "00000007", "04", nonce, "00" * 32])[3], "01")
+            self.assertEqual(self.status(v)[2], 0)
+            v.advance(1499)
+            self.assertEqual(self.status(v)[2], 0)
+            v.advance(1)
+            self.assertEqual(self.status(v)[2], 1)
+
+    def test_only_listed_valid_sync_clears_hold_and_revocation_stays(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            use(v, cmd=2)
+            v.advance(1500)
+            self.assertEqual(self.sync(v, [])[0], "SYNCACK")
+            self.assertEqual(use(v, cmd=2)[3], "07")
+            self.assertEqual(self.status(v)[2], 1)
+            self.assertEqual(self.sync(v, [(7, 0)])[0], "SYNCACK")
+            self.assertEqual(self.status(v)[2], 0)
+            self.assertEqual(use(v, cmd=4)[2:], ["A", "00", "03"])
+            self.sync(v, [(7, 1)])
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            self.assertEqual(use(v, cmd=5)[2], "A")
+            self.sync(v, [(7, 0)])
+            self.assertEqual(use(v, cmd=2)[3], "03")
+
+    def test_return_preserves_restriction_but_authenticated_stop_works(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            use(v, cmd=2)
+            self.assertEqual(use(v, cmd=3)[2], "A")
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            self.assertEqual(use(v, cmd=5)[2], "A")
+            self.assertEqual(use(v, cmd=2)[3], "09")
+
+    def test_storage_failure_does_not_force_stop_and_authenticated_stop_still_works(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            use(v, cmd=2)
+            v.cut(0)
+            self.assertEqual(use(v, cmd=4)[3], "0A")
+            self.assertTrue(v.locked)
+            self.assertEqual(self.status(v)[1:3], (1, 1))
+            self.assertEqual(use(v, cmd=5)[2], "A")
+            self.assertEqual(self.status(v)[1], 0)
+
+    def test_wire_cannot_set_motion_and_recovery_during_drive_is_denied(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            use(v, cmd=2)
+            self.assertEqual(v.send(["STOPPED", "1"]), ["ERR", "FF"])
+            self.assertEqual(self.status(v)[3], 0)
+            self.assertEqual(v.send(["RBEGIN"]), ["RFAIL", "07"])
+            self.assertFalse(v.configure_drive(period=50000))
+
+    def test_timer_unsigned_wrap(self):
+        for factory in self.factories():
+            v = self.ready(factory)
+            if isinstance(v, Native):
+                DLL.bridge_clock(0xFFFFFF00)
+            else:
+                v.ms = 0xFFFFFF00
+            use(v, cmd=2)
+            v.advance(1499)
+            self.assertEqual(self.status(v)[2], 0)
+            v.advance(1)
+            self.assertEqual(self.status(v)[2], 1)
+
+    @unittest.skipUnless(DLL, "C bridge 필요")
+    def test_held_snapshot_matches_python_and_c(self):
+        p, c = self.ready(PythonVehicle), self.ready(Native)
+        self.assertEqual(use(p, cmd=2), use(c, cmd=2))
+        p.advance(1500)
+        c.advance(1500)
+        self.assertEqual(p.raw(), c.raw())
+        self.assertEqual(self.status(p), self.status(c))
+        self.assertEqual(use(p, cmd=5), use(c, cmd=5))
+
+
 class ServerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -610,6 +802,84 @@ class CLITests(unittest.TestCase):
                 wait_port(vp)
                 app("register", "9")
                 self.assertIn("오프라인 횟수 초과", app("open", "9"))
+            finally:
+                for proc in processes:
+                    if proc.poll() is None:
+                        proc.terminate()
+                    proc.wait(timeout=5)
+
+
+class WebReauthTests(unittest.TestCase):
+    def test_cli_timer_web_auto_renew_status_and_authenticated_stop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for source in ROOT.glob("*.py"):
+                shutil.copy2(source, tmp/source.name)
+            chosen = set()
+            def port():
+                while True:
+                    with socket.socket() as s:
+                        s.bind(("127.0.0.1", 0))
+                        number = s.getsockname()[1]
+                    if number not in chosen:
+                        chosen.add(number)
+                        return number
+            sp, vp, wp = port(), port(), port()
+            processes = []
+            env = dict(os.environ, PYTHONUTF8="1")
+            def start(script, *args):
+                proc = subprocess.Popen([sys.executable, "-X", "utf8", str(tmp/script), *args],
+                                        cwd=tmp, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                processes.append(proc)
+            def wait_port(number):
+                deadline = time.monotonic()+8
+                while time.monotonic()<deadline:
+                    try:
+                        with socket.create_connection(("127.0.0.1", number), timeout=.2):
+                            return
+                    except OSError:
+                        time.sleep(.05)
+                self.fail("시연 시험 프로세스 시작 실패")
+            def cli(*args):
+                result = subprocess.run([sys.executable,"-X","utf8",str(tmp/"app.py"),*args,
+                    "--server",f"127.0.0.1:{sp}","--vehicle",f"127.0.0.1:{vp}"],
+                    cwd=tmp,env=env,text=True,encoding="utf-8",capture_output=True,timeout=12)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                return result.stdout
+            def api(cmd):
+                req=urllib.request.Request(f"http://127.0.0.1:{wp}/api",
+                    data=json.dumps(dict(cmd=cmd,kid="7",limit=4)).encode(),headers={"Content-Type":"application/json"})
+                with urllib.request.urlopen(req,timeout=4) as r:
+                    return json.load(r)
+            try:
+                start("server.py",str(sp)); wait_port(sp)
+                cli("issue","7"); cli("net","off")
+                start("vehicle_sim.py","--port",str(vp),"--server",f"127.0.0.1:{sp}",
+                      "--reauth-period","0.5","--reauth-grace","0.5","--stop-cutoff","0.5")
+                wait_port(vp); cli("register","7")
+                self.assertIn("재인증: 허용",cli("drive","7","--period","0.1","--cycles","1"))
+                cli("stop","7")
+                start("web_app.py","--port",str(wp),"--server",f"127.0.0.1:{sp}",
+                      "--vehicle",f"127.0.0.1:{vp}","--reauth-period","0.1")
+                wait_port(wp)
+                with urllib.request.urlopen(f"http://127.0.0.1:{wp}/",timeout=4) as r:
+                    html=r.read().decode()
+                self.assertIn('id="drivestatus"',html)
+                self.assertEqual(api("start")["res"]["code"],"A")
+                deadline=time.monotonic()+4
+                while time.monotonic()<deadline:
+                    state=api("driving-status")
+                    if state.get("warning"):
+                        break
+                    time.sleep(.05)
+                else:
+                    self.fail("웹 자동 재인증·횟수 소진 경고 없음")
+                self.assertTrue(state["running"])
+                self.assertFalse(state["stopped"])
+                self.assertIn("오프라인 횟수 초과",cli("open","7"))
+                self.assertFalse(api("stopped")["ok"])
+                self.assertEqual(api("stop")["res"]["code"],"A")
+                self.assertFalse(api("driving-status")["running"])
             finally:
                 for proc in processes:
                     if proc.poll() is None:

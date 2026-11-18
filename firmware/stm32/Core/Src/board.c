@@ -163,7 +163,7 @@ bool board_init(void) {
 #if CONTROL_USE_ENDPOINTS
     gpio(GPIOF, LOCK_PIN | UNLOCK_PIN, GPIO_MODE_INPUT, GPIO_PULLUP, 0u);
 #endif
-#if VC_DEMO_MODE_SELECT
+#if VC_DEMO_MODE_SELECT || VC_DEMO_DRIVE_INPUT
     __HAL_RCC_GPIOC_CLK_ENABLE();          /* B1 USER on PC13, high while pressed */
     gpio(GPIOC, GPIO_PIN_13, GPIO_MODE_INPUT, GPIO_PULLDOWN, 0u);
 #endif
@@ -287,7 +287,7 @@ void board_apply(Outputs output) {
 bool board_faulted(void) { return failed; }
 
 bool board_mode_button(void) {
-#if VC_DEMO_MODE_SELECT
+#if VC_DEMO_MODE_SELECT || VC_DEMO_DRIVE_INPUT
     return HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET;
 #else
     return false;
