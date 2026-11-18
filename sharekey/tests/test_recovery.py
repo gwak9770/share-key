@@ -27,6 +27,9 @@ if DLL:
     DLL.bridge_send.restype = ctypes.c_char_p
     DLL.bridge_sync.restype = ctypes.c_char_p
     DLL.bridge_media.restype = ctypes.POINTER(ctypes.c_uint8)
+    DLL.bridge_advance.argtypes = [ctypes.c_uint32]
+    DLL.bridge_advance.restype = ctypes.c_char_p
+    DLL.bridge_clock.argtypes = [ctypes.c_uint32]
 
 
 class Native:
@@ -72,6 +75,18 @@ class Native:
         self.sync_rid = fields[0]
         return fields[1:]
 
+    @property
+    def online(self):
+        return DLL.bridge_online()
+
+    @property
+    def misses(self):
+        return DLL.bridge_misses()
+
+    @property
+    def offline_logs(self):
+        return DLL.bridge_offline_logs()
+
 
 class PythonVehicle:
     def __init__(self, image=None):
@@ -79,10 +94,11 @@ class PythonVehicle:
         if image is not None:
             self.flash.data[:] = image
         self.actions = 0
+        self.logs = []
         self.boot()
 
     def boot(self):
-        self.core = VehicleCore(log=QUIET, storage=FlashJournal(self.flash))
+        self.core = VehicleCore(log=self.logs.append, storage=FlashJournal(self.flash))
         self.core.actuate = lambda *args: setattr(self, "actions", self.actions + 1)
 
     def send(self, fields):
@@ -111,6 +127,18 @@ class PythonVehicle:
 
     def sync_request(self):
         return self.core.make_syncreq()
+
+    @property
+    def online(self):
+        return self.core.online
+
+    @property
+    def misses(self):
+        return self.core.sync_misses
+
+    @property
+    def offline_logs(self):
+        return self.logs.count("no server response -> OFFLINE")
 
 
 def register(v, kid=7):
@@ -342,6 +370,128 @@ class PolicyTests(unittest.TestCase):
         for kid in (7, 8, 7, 9):
             self.assertEqual(use(p, kid), use(c, kid))
             self.assertEqual(p.raw(), c.raw())
+
+
+class OfflineTests(unittest.TestCase):
+    def factories(self):
+        return [PythonVehicle, Native] if DLL else [PythonVehicle]
+
+    def accept(self, v, req=None, version=1):
+        req = req or v.sync_request()
+        nonce = bytes.fromhex(req[2])
+        return v.send(["SYNC", f"{VID:08X}", f"{version:08X}", hx(nonce), "00", "-",
+                       hx(sync_tag(version, nonce, []))])
+
+    def test_unknown_first_request_three_failures_and_saturation(self):
+        for factory in self.factories():
+            v = factory()
+            recover(v)
+            self.assertEqual((v.online, v.misses), (-1, 0))
+            v.sync_request()
+            self.assertEqual((v.online, v.misses), (-1, 0))
+            for i in range(1, 8):
+                v.sync_request()
+                self.assertEqual((v.online, v.misses), (0 if i >= 3 else -1, min(i, 3)))
+            self.assertEqual(v.offline_logs, 1)
+
+    def test_online_two_failures_keeps_state_and_success_resets(self):
+        for factory in self.factories():
+            v = factory()
+            recover(v)
+            self.accept(v)
+            self.assertEqual((v.online, v.misses), (1, 0))
+            req = v.sync_request()
+            for i in (1, 2):
+                req = v.sync_request()
+                self.assertEqual((v.online, v.misses), (1, i))
+            self.assertEqual(self.accept(v, req)[0], "SYNCACK")
+            self.assertEqual((v.online, v.misses), (1, 0))
+            v.sync_request()
+            v.sync_request()
+            self.assertEqual((v.online, v.misses), (1, 1))
+
+    def test_bad_responses_and_hb_never_reset_failures(self):
+        for factory in self.factories():
+            for bad_kind in ("tag", "nonce", "version", "vid", "format"):
+                v = factory()
+                recover(v)
+                self.accept(v)
+                v.sync_request()
+                for i in (1, 2, 3):
+                    req = v.sync_request()
+                    nonce = bytes.fromhex(req[2])
+                    fields = ["SYNC", f"{VID:08X}", "00000001", hx(nonce), "00", "-",
+                              hx(sync_tag(1, nonce, []))]
+                    if bad_kind == "tag": fields[-1] = "00" * 32
+                    if bad_kind == "nonce": fields[3] = "00" * 16
+                    if bad_kind == "version":
+                        fields[2], fields[-1] = "00000000", hx(sync_tag(0, nonce, []))
+                    if bad_kind == "vid": fields[1] = "00000000"
+                    if bad_kind == "format": fields = fields[:2]
+                    self.assertIsNone(v.send(fields))
+                    v.send(["HB"])
+                    self.assertEqual(v.misses, i, (factory, bad_kind, i))
+                    self.assertEqual(v.online, 0 if i == 3 else 1)
+                self.assertEqual(v.offline_logs, 1)
+                self.assertEqual(self.accept(v)[0], "SYNCACK")
+                self.assertEqual((v.online, v.misses), (1, 0))
+
+    def test_offline_transition_never_refills_counts_or_writes_flash(self):
+        for factory in self.factories():
+            v = factory()
+            recover(v)
+            self.accept(v)
+            use(v)
+            before = v.raw()
+            for _ in range(4): v.sync_request()
+            self.assertEqual(v.online, 0)
+            self.assertEqual(v.raw(), before)
+            self.assertEqual(use(v)[-1], "02")
+            v.boot()
+            self.assertEqual((v.online, v.misses), (-1, 0))
+
+    def test_recovery_wait_does_not_count_timeouts(self):
+        for factory in self.factories():
+            v = factory()
+            for _ in range(5): v.sync_request()
+            self.assertEqual((v.online, v.misses), (-1, 0))
+            recover(v)
+            self.assertEqual((v.online, v.misses), (-1, 0))
+
+    def test_failed_durable_sync_is_not_online(self):
+        for factory in self.factories():
+            v = factory()
+            recover(v)
+            v.cut(0)
+            self.assertIsNone(self.accept(v, version=2))
+            self.assertTrue(v.locked)
+            self.assertEqual(v.online, -1)
+
+    @unittest.skipUnless(DLL, "C bridge 필요")
+    def test_c_millisecond_boundaries_wraparound_and_stale_rid(self):
+        for start in (0, 0xFFFFFF00):
+            v = Native()
+            recover(v)
+            DLL.bridge_clock(start)
+            v.boot()
+            fields = DLL.bridge_advance(0).decode().split("|")
+            self.assertEqual(fields[1], "SYNCREQ")
+            stale_rid = fields[0]
+            self.assertEqual(v.misses, 0)
+            for i in (1, 2, 3):
+                self.assertEqual(DLL.bridge_advance(1999), b"")
+                self.assertEqual(v.misses, i - 1)
+                fields = DLL.bridge_advance(1).decode().split("|")
+                self.assertEqual(v.misses, i)
+            self.assertEqual(v.online, 0)
+            nonce = bytes.fromhex(fields[3])
+            wrong_rid = f"{(int(fields[0], 16) + 1) % 256:02X}"
+            response = ["SYNC", f"{VID:08X}", "00000001", hx(nonce), "00", "-", hx(sync_tag(1, nonce, []))]
+            DLL.bridge_send((wrong_rid + "|" + "|".join(response)).encode())
+            self.assertEqual((v.online, v.misses), (0, 3))
+            v.sync_rid = fields[0]
+            self.assertEqual(v.send(response)[0], "SYNCACK")
+            self.assertEqual((v.online, v.misses), (1, 0))
 
 
 class ServerTests(unittest.TestCase):

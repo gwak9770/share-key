@@ -13,7 +13,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "sk_store.h"
-#define SK_POLICY_VERSION "20261118-flash-recovery-1"
+#define SK_POLICY_VERSION "20261118-offline-three-misses-1"
+#define SK_OFFLINE_MISSES 3u
 
 #define SK_VID              0x0000CAFEu
 #define SK_MAX_KEYS         8
@@ -40,6 +41,9 @@ void sk_recovery_tag(uint32_t ver, const uint8_t nonce[16], uint32_t kid,
 void sk_set_sync_period(uint32_t ms);    /* 기본 2000ms */
 void sk_handle_line(char *line);         /* "RID|종류|..." 한 줄 (\r\n 제거된 상태). line 은 수정됨 */
 void sk_poll(void);                      /* 주기적으로 호출 (SYNCREQ 송신, 오프라인 판단) */
+/* Read-only connectivity diagnostics: -1 unknown, 0 offline, 1 online. */
+int sk_online_state(void);
+unsigned sk_sync_misses(void);
 
 /* Read-only UI snapshot. No nonce, count, state or authorization mutation.
  * remaining is the raw policy counter (-1 for policies without a count).

@@ -36,26 +36,25 @@ class App(socketserver.StreamRequestHandler):
 
 
 def sync_loop():
-    online = None
     while True:
+        started = time.monotonic()
         request = core.make_syncreq()
         if request is None:
             time.sleep(a.sync)
             continue
-        ok = False
+        c = None
         try:
             c = Conn.connect(SH, int(SP), timeout=1.0)
             p = c.request(*request)
             if core.apply_sync(p):
                 c.request("SYNCACK", f"{VID:08X}", f"{core.ver:08X}")
-                ok = True
-            c.close()
         except (OSError, ConnectionError, ValueError, IndexError):
             pass
-        if ok != online:
-            log("서버 연결됨" if ok else "서버 연결 끊김 → 오프라인 판단")
-            online = ok
-        time.sleep(a.sync)
+        finally:
+            if c is not None:
+                c.close()
+        # Count at scheduled request boundaries, not timeout + sync seconds.
+        time.sleep(max(0, a.sync - (time.monotonic() - started)))
 
 
 if __name__ == "__main__":

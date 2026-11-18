@@ -28,11 +28,10 @@ from storage import FlashJournal, MemoryFlash
 core = VehicleCore(a.mode, log, FlashJournal(MemoryFlash(path=a.flash_file)) if a.flash_file else None)
 wlock = threading.Lock()
 sync_rid = None
-online = None
 
 
 def main():
-    global sync_rid, online
+    global sync_rid
     srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", a.port)); srv.listen(1)
     log(f"시작 (가상 시리얼 port={a.port}) Pi 연결 대기")
@@ -47,10 +46,8 @@ def main():
                 s.sendall(("|".join([rid, *fields]) + "\n").encode())
 
         def ticker():
-            global sync_rid, online
+            global sync_rid
             while alive[0]:
-                if sync_rid is not None and online is not False:     # 이전 요청에 응답 없음
-                    online = False; log("서버 응답 없음 → 오프라인 판단")
                 sync_rid = os.urandom(1).hex().upper()
                 try:
                     request = core.make_syncreq()
@@ -71,8 +68,6 @@ def main():
                     sync_rid = None
                     if core.apply_sync(p):
                         out(rid, ["SYNCACK", f"{VID:08X}", f"{core.ver:08X}"])
-                        if online is not True:
-                            online = True; log("서버 동기화 성공 → 온라인")
                     continue
                 r = core.handle(p)
                 if r is not None:

@@ -14,6 +14,9 @@ class VehicleCore:
         self.lock = threading.Lock()
         self.keys, self.nonces = {}, {}
         self.ver, self.sync_nonce = 0, None
+        self.online = -1
+        self.sync_misses = 0
+        self.sync_waiting = False
         self.storage = storage
         self.recovery_required = False
         self.recovery_nonce = None
@@ -103,6 +106,9 @@ class VehicleCore:
         self.recovery_required = False
         self.nonces.clear()
         self.sync_nonce = None
+        self.online = -1
+        self.sync_misses = 0
+        self.sync_waiting = False
         self.log("STORAGE RECOVERY COMPLETE")
         return ["RECOVERED", f"{kid:08X}"]
 
@@ -152,7 +158,13 @@ class VehicleCore:
         with self.lock:
             if self.recovery_required:
                 return None
+            if self.sync_waiting:
+                self.sync_misses = min(3, self.sync_misses + 1)
+                if self.sync_misses == 3 and self.online != 0:
+                    self.online = 0
+                    self.log("no server response -> OFFLINE")
             self.sync_nonce = os.urandom(16)
+            self.sync_waiting = True
             return ["SYNCREQ", f"{VID:08X}", hx(self.sync_nonce), f"{self.ver:08X}"]
 
     def apply_sync(self, p):
@@ -176,4 +188,11 @@ class VehicleCore:
                     elif k["state"] == 0:
                         k["remaining"] = k["limit"]
             self.ver = nv
-            return self._persist()
+            if not self._persist():
+                return False
+            self.sync_waiting = False
+            self.sync_misses = 0
+            if self.online != 1:
+                self.online = 1
+                self.log("server sync ok -> ONLINE")
+            return True

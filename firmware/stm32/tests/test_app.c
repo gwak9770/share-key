@@ -367,6 +367,25 @@ static void test_policy_count_duplicate_and_sync(void) {
     authenticate(1, 'D', "03", 2); /* Valid sync cannot resurrect a revoked key. */
 }
 
+static void test_three_misses_online_indicator(void) {
+    reset_app(); register_key();
+    char sync[256];
+    make_sync(1,0,sync,sizeof sync); feed_line(sync);
+    assert(led_online && sk_online_state()==1);
+    keepalive_for(2000); /* First new request, not a missed response yet. */
+    assert(sk_sync_misses()==0 && led_online);
+    for (unsigned miss=1;miss<=3;++miss) {
+        keepalive_for(2000); /* Pi HB remains healthy while server is absent. */
+        assert(sk_sync_misses()==miss);
+        assert(led_online==(miss<3));
+        assert(control_link_fresh(vehicle_app_controller(),now_ms));
+        assert(vehicle_app_controller()->fault==FAULT_NONE);
+    }
+    make_sync(1,0,sync,sizeof sync); feed_line(sync);
+    assert(led_online && sk_online_state()==1 && sk_sync_misses()==0);
+    puts("PASS offline indicator: 3 server misses, Pi HB independent, signed recovery online");
+}
+
 static void test_tamper_and_replay(void) {
     reset_app();
     register_key();
@@ -782,6 +801,7 @@ int main(void) {
     test_door_state_log();
     test_heartbeat_and_servo_bridge();
     test_policy_count_duplicate_and_sync();
+    test_three_misses_online_indicator();
     test_tamper_and_replay();
     test_frames_and_test_build_boundary();
     test_motor_failure_does_not_refund();

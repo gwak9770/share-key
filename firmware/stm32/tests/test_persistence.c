@@ -14,6 +14,7 @@
 static uint8_t media[2][SECTOR];
 static char reply[600];
 static int budget=-1, actions, reads_fail;
+static unsigned offline_logs;
 static uint32_t now_ms, rng=1;
 static int step(void) { if (budget==0) return 0; if (budget>0) --budget; return 1; }
 static int rd(void *c,unsigned b,uint32_t o,uint8_t *p,size_t n) {
@@ -43,7 +44,7 @@ static int er(void *c,unsigned b) {
 }
 static const sk_store_io_t io={NULL,SECTOR,rd,wr,er};
 void sk_port_send_line(const char *s) { assert(strlen(s)<sizeof reply); strcpy(reply,s); }
-void sk_port_log(const char *s) { (void)s; }
+void sk_port_log(const char *s) { if (!strcmp(s,"no server response -> OFFLINE")) ++offline_logs; }
 uint32_t sk_port_millis(void) { return now_ms; }
 uint32_t sk_port_unix_time(void) { return 100u; }
 void sk_port_random(uint8_t *p,size_t n) {
@@ -62,7 +63,7 @@ void sk_port_actuate(int cmd,int remaining) {
 void sk_port_deny(int cmd,const char *why) { (void)cmd; (void)why; }
 API void bridge_boot(void) { sk_use_storage(&io); sk_init('C'); reply[0]=0; }
 API void bridge_reset(void) {
-    memset(media,255,sizeof media); budget=-1; reads_fail=actions=0; now_ms=0; bridge_boot();
+    memset(media,255,sizeof media); budget=-1; reads_fail=actions=0; offline_logs=0; now_ms=0; bridge_boot();
 }
 API const char *bridge_send(const char *s) {
     char line[600]; assert(strlen(s)<sizeof line); strcpy(line,s); reply[0]=0;
@@ -74,6 +75,11 @@ API void bridge_cut(int n) { budget=n; }
 API void bridge_read_fail(int n) { reads_fail=n; }
 API int bridge_actions(void) { return actions; }
 API int bridge_locked(void) { return sk_recovery_needed(); }
+API int bridge_online(void) { return sk_online_state(); }
+API unsigned bridge_misses(void) { return sk_sync_misses(); }
+API unsigned bridge_offline_logs(void) { return offline_logs; }
+API const char *bridge_advance(uint32_t delta) { reply[0]=0; now_ms+=delta; sk_poll(); return reply; }
+API void bridge_clock(uint32_t value) { now_ms=value; }
 
 #ifndef SK_BRIDGE_LIBRARY
 static void hex(const uint8_t *p,size_t n,char *s) {
