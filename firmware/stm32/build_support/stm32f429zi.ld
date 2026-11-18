@@ -1,10 +1,10 @@
 /* Standalone F429ZI link-check layout. Keep the actual CubeIDE-generated linker
- * in the team's project. This file does not reserve a Flash persistence journal.
+ * in the team's project. Last 256 KiB are reserved for the persistence journal.
  * SRAM1+SRAM2+SRAM3 = 192 KiB at 0x20000000; CCM is separate, not contiguous.
  */
 ENTRY(Reset_Handler)
 MEMORY {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 2048K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1792K
     RAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 192K
 }
 _estack = ORIGIN(RAM) + LENGTH(RAM);

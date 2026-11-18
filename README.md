@@ -64,9 +64,9 @@
 | `firmware/stm32/build_support` | 별도 ARM 컴파일·링크 검사 하네스와 과거 결과. 실제 CubeIDE 프로젝트를 대체하지 않음 |
 | `firmware/stm32/examples/servo_test_f429` | 독립 서보 시험 예제. 통합 펌웨어와 구분 |
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
-| `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
+| `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증·저장 소스의 출처·Git 원본 SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.19. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.20. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -117,6 +117,43 @@
 디바이스마트 주문 중 4WD 프레임 세트·MDD3A만 배송 대기(미도착). Grove 스위치는 취소 확정, 케이블·홀더·건전지는 취소 요청(11/18). 주문 원본은 [04 주문 목록](docs/04_purchase_list.md). 부품이 도착하면 이 표의 상태와 날짜를 PR로 갱신한다.
 
 ## 5. 설치·시험·빌드
+
+### 플래시 저장·복구 (PR #20, 보드 미검증)
+
+최대 8키의 남은 횟수·취소/반납 상태·동기화 버전을 내부 플래시 두 구역에 기록하는 PC 검증 구현이다. 호스트 PC 시험과 실제 보드 결과는 구분한다. **이 구현의 ARM/CubeIDE 빌드·업로드·실물 전원 차단 시험은 미수행**이다. 실제 휴대폰 앱 대신 아래 앱 스크립트가 요청·발급·운반 역할을 한다.
+
+- 보드는 `VC_ENABLE_FLASH=1` 기본. 최초 빈 저장소도 0A(복구 필요)로 제한한다. 서버 일반 키 발급 후 복구 절차로 초기 승인한다. `VC_ENABLE_FLASH=0`은 저장 없는 이전 시연 설정이다.
+- 섹터 22·23(각 128KiB)을 예약한다. `prepare_cubeide_copy.py`는 복사본의 링커 FLASH 길이를 1792K로 변경하고 FLASH HAL 소스를 포함한다. 원본 CubeIDE 프로젝트는 건드리지 않는다. 코드/상수의 load image는 bank 1 안이어야 하며 드라이버가 검사한다.
+- 저장 실패면 성공 응답·구동을 하지 않는다. 불완전한 기록은 제외하고, 완료 기록 손상은 복구 필요로 처리한다. 복구 후에는 서버가 새 승인한 키 1개만 사용한다. 복구는 이전 잔여 횟수 복원이 아니라 새 권한 부여다.
+- 지우기는 모터·서보 동작 중 거부한다. HAL 지우기의 통신/제어 지연·watchdog·전압 저하 영향은 실물 확인 필요. CRC가 모든 손상·물리적 변조를 검출하거나 복구 포함 총 사용량을 보장하지 않는다.
+
+PC 저장 모의는 `sharekey/`에서 `python -X utf8 vehicle_sim.py --mode C --flash-file vehicle_flash.bin`으로 실행한다. 생략하면 기존 RAM 시연이다. Pi 중계 모의는 `stm32_sim.py --flash-file vehicle_flash.bin`도 지원한다. 저장 파일 크기가 잘못되면 자동 삭제·초기화하지 않고 시작을 중단한다.
+
+서버(`server.py`)와 차량/중계를 먼저 실행한 뒤 다음 단계를 각각 수행한다. 키 번호는 16진수이며, 새 번호는 서버에서 사용한 적 없는 번호여야 한다. `--server`·`--vehicle`로 주소를 지정할 수 있다.
+
+```sh
+python -X utf8 app.py issue 7
+python -X utf8 app.py net off
+# 차량 옆: 복구 요청을 휴대폰 역할의 파일에 담음
+python -X utf8 app.py recovery-request
+# 서버 통신 가능한 곳: 차량 연결 없이 새 권한 발급
+python -X utf8 app.py recovery-issue 7 --new-kid 8
+# 차량 옆: 서버 연결 없이 전달·적용
+python -X utf8 app.py recovery-apply
+python -X utf8 app.py open 8
+```
+
+`recovery/bundle.json`과 `keys/`는 인증 정보를 담는 실행 데이터이며 Git 제외 대상이다. 복구 요청 뒤 차량이 재부팅되면 요청부터 다시 하고, 이미 새 키가 발급됐다면 그 키를 근거로 또 다른 새 번호를 발급받는다. 발급 응답은 저장돼 같은 요청을 재시도할 수 있다. 차량 응답 유실로 적용 여부가 불분명하면 새 키 사용 여부로 확인한다. 일반 사용 중 `RBEGIN`으로 횟수를 충전할 수는 없다.
+
+서버는 기존 키 소유 증명·유효/미만료 상태를 확인하고 새 권한을 발급한다. 기존 발급/취소 API는 인증 없는 개발용이며 상업용 본인 인증은 아니다. 차량 반납 후 앱이 서버에도 반납을 알리지만 알림 실패 시 서버는 그 반납을 모를 수 있다. 발급 후 전달 전 취소도 오프라인 차량에 즉시 전달되지 않는다. 서버 전체 기록은 동기화 형식에 맞춰 16개로 제한하며 장기 정리는 범위 밖이다.
+
+추가 PC 시험(저장소 루트 기준):
+
+```sh
+python firmware/stm32/tools/run_persistence_tests.py --cc gcc
+```
+
+Windows MSVC 개발자 터미널에서는 `python -X utf8 firmware/stm32/tools/run_persistence_tests.py --cc cl`을 쓴다. 실제 C 판단 코드와 Python을 같은 시나리오로 실행하며, 기록 바이트 일치·30회 재부팅 모의·저장/구역 전환/복구 도중 차단·취소/반납 발급 거부·단계별 CLI를 검사한다. `demo.py --relay-c`용 TCP C 하네스와는 다르다.
 
 새 PC에서는 Git을 설치하고 아래 명령으로 받습니다. 이미 이 폴더가 있으면 다시 clone하지 말고 6절의 최신 코드 확인부터 진행합니다. 도구 설치는 각자 환경에서 준비하며 이 문서 작업에서는 설치하지 않았습니다.
 
@@ -257,7 +294,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.19, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.20, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |

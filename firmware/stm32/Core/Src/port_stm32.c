@@ -7,6 +7,8 @@
 #include "config.h"
 #include "vehicle_platform.h"
 #include "peripherals.h"
+#include "sharekey.h"
+#include "sk_flash_stm32.h"
 #include <string.h>
 
 extern UART_HandleTypeDef huart3;
@@ -56,6 +58,11 @@ static void send_line(const char *prefix, const char *line) {
 }
 
 bool vc_platform_init(void) {
+#if VC_ENABLE_FLASH
+    sk_use_storage(sk_flash_stm32_io());
+#else
+    sk_use_storage(NULL); /* Explicit legacy volatile demo only. */
+#endif
     rx_head = rx_tail = tx_head = tx_tail = tx_active = 0;
     rx_fault = rx_restart = tx_fault = false;
     if (huart3.Instance != USART3 || hrng.Instance != RNG ||

@@ -24,14 +24,15 @@ def main():
         raise SystemExit("C compiler not found. Use GCC/Clang, or --cc cl in an MSVC developer prompt.")
     msvc = Path(cc).name.lower() in {"cl", "cl.exe"}
     common = ["Core/Src/control.c", "Core/Src/line_reader.c", "Core/Src/vehicle_app.c",
-              "Core/Src/sharekey.c", "Core/Src/sk_crypto.c"]
+              "Core/Src/sharekey.c", "Core/Src/sk_crypto.c", "Core/Src/sk_store.c"]
     oled = ["Core/Src/control.c", "Core/Src/oled.c", "tests/test_oled.c"]
     cases = [
+        ("persistence", [], ["Core/Src/sharekey.c", "Core/Src/sk_crypto.c", "Core/Src/sk_store.c", "tests/test_persistence.c"]),
         ("control_no_endpoints", ["-DCONTROL_USE_ENDPOINTS=0"], ["Core/Src/control.c", "tests/test_control.c"]),
         ("control_endpoints", ["-DCONTROL_USE_ENDPOINTS=1"], ["Core/Src/control.c", "tests/test_control.c"]),
         ("pwm_clock", [], ["Core/Src/pwm_clock.c", "tests/test_pwm_clock.c"]),
         ("line_reader", [], ["Core/Src/line_reader.c", "tests/test_line_reader.c"]),
-        ("auth_vectors", [], ["Core/Src/sharekey.c", "Core/Src/sk_crypto.c", "tests/test_vectors.c"]),
+        ("auth_vectors", [], ["Core/Src/sharekey.c", "Core/Src/sk_crypto.c", "Core/Src/sk_store.c", "tests/test_vectors.c"]),
         ("app_c", ["-DAPP_POLICY_MODE='C'"], common + ["tests/test_app.c"]),
         ("app_a", ["-DAPP_POLICY_MODE='A'"], common + ["tests/test_app.c"]),
         ("app_c_motor", ["-DAPP_POLICY_MODE='C'", "-DVC_ENABLE_MOTORS=1"], common + ["tests/test_app.c"]),

@@ -12,6 +12,8 @@
 #define SHAREKEY_H
 #include <stdint.h>
 #include <stddef.h>
+#include "sk_store.h"
+#define SK_POLICY_VERSION "20261118-flash-recovery-1"
 
 #define SK_VID              0x0000CAFEu
 #define SK_MAX_KEYS         8
@@ -30,6 +32,11 @@ void     sk_port_deny(int cmd, const char *reason);/* 거부 표시 (LED/LCD) */
 
 /* ---- 모듈 API ---- */
 void sk_init(char mode);                 /* 'A' 서버 취소만, 'B' +기간, 'C' +오프라인 횟수, 'D' +기간·횟수 */
+/* Bind before sk_init. NULL retains the explicit legacy volatile PC demo. */
+void sk_use_storage(const sk_store_io_t *io);
+int sk_recovery_needed(void);
+void sk_recovery_tag(uint32_t ver, const uint8_t nonce[16], uint32_t kid,
+                     uint32_t exp, uint8_t limit, uint8_t sit, uint8_t perm, uint8_t tag[32]);
 void sk_set_sync_period(uint32_t ms);    /* 기본 2000ms */
 void sk_handle_line(char *line);         /* "RID|종류|..." 한 줄 (\r\n 제거된 상태). line 은 수정됨 */
 void sk_poll(void);                      /* 주기적으로 호출 (SYNCREQ 송신, 오프라인 판단) */

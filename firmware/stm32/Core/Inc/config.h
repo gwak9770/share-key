@@ -1,6 +1,11 @@
 #ifndef VEHICLE_CONFIG_H
 #define VEHICLE_CONFIG_H
 
+/* Flash defaults ON on the target. Blank media requires authenticated recovery. */
+#ifndef VC_ENABLE_FLASH
+#define VC_ENABLE_FLASH 1
+#endif
+
 /* F429 v2, 2026-10-28. Main demo remains A/C; policy/wire format is unchanged. */
 #ifndef APP_POLICY_MODE
 #define APP_POLICY_MODE 'C'
@@ -15,7 +20,8 @@
  * Still held after VC_MODE_SELECT_MAX_MS -> the mode on screen is confirmed.
  * 1104: UART bytes received while selecting are dropped (only HB that arrive
  * after selection make the link fresh).
- * Keys/counts are RAM-only, so every RESET needs the key registered again.
+ * Flash-enabled builds restore keys/counts after RESET. Only the explicit
+ * VC_ENABLE_FLASH=0 demo discards them. Provision distinct keys for comparisons.
  * Default OFF: a real vehicle must not let a physical button pick a weaker
  * policy. Only A/C are accepted until B/D are integrated with the RTC. */
 #ifndef VC_DEMO_MODE_SELECT

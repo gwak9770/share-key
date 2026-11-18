@@ -16,6 +16,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--mode", default="C", choices="ABCD")
 ap.add_argument("--port", type=int, default=9200)
 ap.add_argument("--sync", type=float, default=2.0)
+ap.add_argument("--flash-file", help="PC 플래시 모의 파일. 생략 시 기존 RAM 시연")
 a = ap.parse_args()
 
 
@@ -23,7 +24,8 @@ def log(*x):
     print(time.strftime("%H:%M:%S"), f"[STM32 {a.mode}]", *x, flush=True)
 
 
-core = VehicleCore(a.mode, log)
+from storage import FlashJournal, MemoryFlash
+core = VehicleCore(a.mode, log, FlashJournal(MemoryFlash(path=a.flash_file)) if a.flash_file else None)
 wlock = threading.Lock()
 sync_rid = None
 online = None
@@ -51,7 +53,9 @@ def main():
                     online = False; log("서버 응답 없음 → 오프라인 판단")
                 sync_rid = os.urandom(1).hex().upper()
                 try:
-                    out(sync_rid, core.make_syncreq())
+                    request = core.make_syncreq()
+                    if request is not None:
+                        out(sync_rid, request)
                 except OSError:
                     return
                 time.sleep(a.sync)

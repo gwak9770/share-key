@@ -19,7 +19,9 @@ secrets.*
 tokens/
 token.json
 keys/
+recovery/
 server_state.json
+server_state.json.tmp
 *_state.json
 config.local.*
 *.local
