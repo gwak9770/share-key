@@ -66,7 +66,7 @@
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증 소스 4개 파일의 출처·SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.18. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.19. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -100,21 +100,21 @@
 
 핀·클록·전원은 [CubeIDE 적용 안내](firmware/stm32/docs/INTEGRATE_CUBEIDE_KO.md), [배선·시험 안내](firmware/stm32/docs/WIRING_AND_TEST_KO.md)와 실제 보드를 대조합니다. 오래된 [펌웨어 README](firmware/stm32/README_KO.md)에는 OLED 기본 꺼짐 등 초기 설명이 남아 있으므로 현재 `config.h`와 후속 변경 기록을 함께 확인합니다.
 
-### 부품 상태 (2026-11-16 기준)
+### 부품 상태 (2026-11-18 기준)
 
 | 부품 | 상태 | 쓰는 곳 | 도착 전 대체 |
 |---|---|---|---|
 | 4WD 주행로봇 프레임 세트 | 배송 대기 (10/27 디바이스마트 주문) | 차체 위판 교체 | 기존 4WD 아래판 |
 | Cytron MDD3A 모터 드라이버 | 배송 대기 (같은 주문) | 바퀴 구동(시동 시연) | 판단만, 모터 끔(VC_ENABLE_MOTORS 0) |
-| Grove Micro Switch | 배송 대기 (같은 주문, 해외) | 문 닫힘 감지 PF12 | 키트 택트 스위치(PF12–GND, VC_DOOR_ACTIVE_LOW 1) |
-| Grove → 암 점퍼 케이블 | 배송 대기 (같은 주문, 해외) | Grove 스위치 연결 | 점퍼선 직결 |
-| 4×AA 배터리 홀더(커버형), AA 건전지 4개 | 배송 대기 (같은 주문) | 서보·모터 6V | 지금 쓰는 4구 홀더 |
+| Grove Micro Switch | **취소 확정 (11/18)** | — | 문 스위치는 키트 택트 스위치로 확정(PF12–GND, VC_DOOR_ACTIVE_LOW 1) |
+| Grove → 암 점퍼 케이블 | 취소 요청 (11/18) | Grove 스위치용이라 불필요 | — |
+| 4×AA 배터리 홀더(커버형), AA 건전지 4개 | 취소 요청, 지금 쓰는 4구 홀더 사용 (11/18) | 서보·모터 6V | 지금 쓰는 4구 홀더 |
 | DS3231 RTC (키트) | 보유, 미연결. 김채희 보관(11/17 확인). 칩 DS3231SN이 붙은 'DS3231 For Pi' 소형 모듈(5핀 소켓, I2C 주소 0x68), 뒷면 12mm급 동전 전지(CR1220 추정, 규격·잔량 미확인). 핀 인쇄·전압 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
 | SG90 서보, 택트 스위치, LED (키트) | 보유, 사용 중 | 문 잠금·입력·표시 | — |
 | OLED 2.42" SSD1309 | 보유, 사용 중 | 상태 표시 | — |
 | 끝점 스위치 | 미주문 | 잠금 위치 확인 PF13/PF14 | 시간 추정(LOCK EST) |
 
-디바이스마트 주문은 묶음 배송으로 모두 미도착. 부품이 도착하면 이 표의 상태와 날짜를 PR로 갱신한다.
+디바이스마트 주문 중 4WD 프레임 세트·MDD3A만 배송 대기(미도착). Grove 스위치는 취소 확정, 케이블·홀더·건전지는 취소 요청(11/18). 주문 원본은 [04 주문 목록](docs/04_purchase_list.md). 부품이 도착하면 이 표의 상태와 날짜를 PR로 갱신한다.
 
 ## 5. 설치·시험·빌드
 
@@ -257,7 +257,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.18, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.19, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
