@@ -387,6 +387,10 @@ void sk_port_send_line(const char *line) {
     vc_platform_send_line(line);
 }
 void sk_port_log(const char *line) {
+    if (!strcmp(line,"STORAGE RECOVERY REQUIRED")) sk_port_deny(0,"0A");
+    if (!strcmp(line,"STORAGE RECOVERY COMPLETE")) {
+        display.policy='K'; memcpy(display.reason,"00",3u); deny_led=false;
+    }
     if (!strcmp(line, "server sync ok -> ONLINE")) server_online = true;
     if (!strcmp(line, "no server response -> OFFLINE")) server_online = false;
     vc_platform_log(line);

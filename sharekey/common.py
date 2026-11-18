@@ -15,6 +15,7 @@ REASON = {"00": "정상", "01": "인증값 불일치", "02": "nonce 만료·재�
           "04": "유효기간 만료", "05": "오프라인 횟수 초과", "06": "권한 없음",
           "07": "재검증 대기", "08": "등록되지 않은 키", "09": "반납된 키"}
 RESULT = {"A": "허용", "D": "거부", "H": "재검증 대기"}
+REASON["0A"] = "저장 장애·복구 필요"
 
 u32 = lambda v: int(v).to_bytes(4, "big")
 hx = lambda b: b.hex().upper()
@@ -43,6 +44,16 @@ def sync_tag(ver, nonce, entries):     # HMAC(K_v, "SYNC" ‖ VID ‖ VER ‖ NO
 
 def enc_entries(entries):
     return ",".join(f"{k:08X}:{s:02X}" for k, s in entries) or "-"
+
+
+def recovery_proof(kid, newkid, nonce, ki=None):
+    return H(derive(kid) if ki is None else ki,
+             b"RISSUE" + u32(VID) + nonce + u32(kid) + u32(newkid))
+
+
+def recovery_tag(ver, nonce, kid, exp, limit, sit, perm):
+    return H(K_V, b"RECOVER" + u32(VID) + nonce + u32(ver) + u32(kid)
+             + u32(exp) + bytes((limit, sit, perm)))
 
 
 def dec_entries(s):

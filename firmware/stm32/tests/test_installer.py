@@ -49,11 +49,11 @@ MEMORY {
 """)
         self.write("Core/Src/main.c", MAIN)
         self.write("Core/Inc/stm32f4xx_hal_conf.h", "\n".join(
-            "/* #define HAL_" + module + "_MODULE_ENABLED */" for module in ("TIM", "I2C", "IWDG")) + "\n")
+            "/* #define HAL_" + module + "_MODULE_ENABLED */" for module in ("TIM", "I2C", "IWDG", "FLASH")) + "\n")
         hal = self.cube / "Drivers/STM32F4xx_HAL_Driver"
         (hal / "Src").mkdir(parents=True)
         (hal / "Inc").mkdir()
-        for module in ("tim", "tim_ex", "i2c", "i2c_ex", "iwdg"):
+        for module in ("tim", "tim_ex", "i2c", "i2c_ex", "iwdg", "flash", "flash_ex"):
             (hal / "Src" / ("stm32f4xx_hal_" + module + ".c")).write_text("/* Fixture source. */\n")
         (hal / "Inc/stm32f4xx_hal_tim.h").write_text("/* Fixture header. */\n")
 
@@ -95,11 +95,19 @@ MEMORY {
         self.assertEqual(main.count("sk_app_run();"), 1)
         self.assertLess(main.index("existing_user_init();"), main.index("sk_app_run();"))
         self.assertLess(main.index("sk_app_run();"), main.index("/* USER CODE END 2 */"))
-        for module in ("TIM", "I2C", "IWDG"):
+        for module in ("TIM", "I2C", "IWDG", "FLASH"):
             self.assertIn("#define HAL_" + module + "_MODULE_ENABLED",
                           (self.dest / "Core/Inc/stm32f4xx_hal_conf.h").read_text())
         self.assertTrue((self.dest / "Core/Src/port_stm32.c").is_file())
         self.assertTrue((self.dest / "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c").is_file())
+        self.assertTrue((self.dest / "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c").is_file())
+        self.assertTrue((self.dest / "Core/Src/sk_flash_stm32.c").is_file())
+        self.assertIn("LENGTH = 1792K", (self.dest / LINKER).read_text())
+        self.assertIn("LENGTH = 2048K", (self.source / LINKER).read_text())
+
+    def test_unknown_flash_layout_never_leaves_an_import(self):
+        self.edit(LINKER, "2048K", "4096K")
+        self.assert_rejected("Review FLASH journal reservation manually")
 
     def test_existing_main_hook_not_duplicated(self):
         self.edit("Core/Src/main.c", "existing_user_init();",

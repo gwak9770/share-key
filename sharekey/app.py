@@ -19,6 +19,8 @@ ap.add_argument("--sit", type=int, default=2, help="0가족 1대리·발레 2렌
 ap.add_argument("--perm", type=int, default=3, help="1문 2시동 3문+시동")
 ap.add_argument("--server", default=f"{SERVER_HOST}:{SERVER_PORT}")
 ap.add_argument("--vehicle", default=f"{VEHICLE_HOST}:{VEHICLE_PORT}")
+ap.add_argument("--new-kid", type=lambda v: int(v, 16), help="복구 후 새 키 번호(16진수)")
+ap.add_argument("--bundle", default="recovery/bundle.json", help="복구 운반 파일(저장소에 올리지 않음)")
 
 
 def kpath(kid):
@@ -66,9 +68,13 @@ def use(a, kid, cmd, attack=None):
 def main(argv=None):
     a = ap.parse_args(argv)
     kid = int(a.arg, 16) if a.arg and a.cmd not in ("net",) else None
+    if a.cmd in ("recovery-request", "recovery-issue", "recovery-apply"):
+        return recovery(a, kid)
     if a.cmd == "issue":
         exp = int(time.time() + a.hours * 3600)
         p = server(a, "ISSUE", f"{kid:08X}", f"{exp:08X}", f"{a.limit:02X}", f"{a.sit:02X}", f"{a.perm:02X}")
+        if p[0] != "ISSUED":
+            raise ValueError("키 발급 거부: " + "|".join(p))
         os.makedirs(KEYDIR, exist_ok=True)
         json.dump({"key_line": ["KEY", *p[1:7]], "ki": p[7]}, open(kpath(kid), "w"))
         print(f"[주인 앱] KID={kid:08X} 발급 (한도 {a.limit}, {a.hours}시간)")
@@ -83,11 +89,69 @@ def main(argv=None):
         c = vehicle(a); p = c.request(*k["key_line"]); c.close()
         print(f"[앱] 차량 키 등록: {'성공' if p[0] == 'KEYOK' else '실패'}")
     elif a.cmd in ("open", "start", "return"):
-        return use(a, kid, {"open": 1, "start": 2, "return": 3}[a.cmd])
+        result = use(a, kid, {"open": 1, "start": 2, "return": 3}[a.cmd])
+        if a.cmd == "return" and result and result[0] == "A":
+            k = json.load(open(kpath(kid)))
+            proof = H(bytes.fromhex(k["ki"]), b"RETURN" + u32(VID) + u32(kid))
+            try:
+                response = server(a, "RETURN", f"{kid:08X}", hx(proof))
+                if response[0] != "RETURNED":
+                    print("[앱] 차량 반납 완료, 서버 반납 알림 거부:", response)
+            except (OSError, ConnectionError):
+                print("[앱] 차량 반납 완료, 서버 알림 실패: 서버는 오프라인 반납을 모를 수 있음")
+        return result
     elif a.cmd in ("tamper", "replay"):
         return use(a, kid, 1, a.cmd)
     else:
         print(__doc__)
+
+
+def recovery(a, kid):
+    """휴대폰 역할의 단계별 CLI. 차량/서버에 동시에 연결할 필요 없음."""
+    from pathlib import Path
+    bundle = Path(a.bundle)
+    if a.cmd == "recovery-request":
+        c = vehicle(a)
+        try:
+            reply = c.request("RBEGIN")
+        finally:
+            c.close()
+        if reply[0] != "RCHAL":
+            raise ValueError("복구 요청 거부: " + "|".join(reply))
+        data = {"challenge": reply}
+    elif a.cmd == "recovery-issue":
+        if kid is None or a.new_kid is None:
+            raise ValueError("기존 키와 --new-kid 필요")
+        data = json.loads(bundle.read_text(encoding="utf-8"))
+        _, vid, nonce = data["challenge"]
+        k = json.load(open(kpath(kid)))
+        proof = recovery_proof(kid, a.new_kid, bytes.fromhex(nonce), bytes.fromhex(k["ki"]))
+        reply = server(a, "RISSUE", vid, nonce, f"{kid:08X}", f"{a.new_kid:08X}", hx(proof))
+        if reply[0] != "RISSUED":
+            raise ValueError("복구 발급 거부: " + "|".join(reply))
+        data["recovery_line"] = ["RECOVER", *reply[1:10]]
+        data["key"] = {"ki": reply[10], "key_line": ["KEY", *reply[4:9], reply[11]]}
+        os.makedirs(KEYDIR, exist_ok=True)
+        with open(kpath(a.new_kid), "w", encoding="utf-8") as stream:
+            json.dump(data["key"], stream)
+    else:
+        data = json.loads(bundle.read_text(encoding="utf-8"))
+        c = vehicle(a)
+        try:
+            reply = c.request(*data["recovery_line"])
+        finally:
+            c.close()
+        if reply[0] != "RECOVERED":
+            raise ValueError("복구 적용 거부: " + "|".join(reply))
+        os.makedirs(KEYDIR, exist_ok=True)
+        with open(kpath(int(reply[1], 16)), "w", encoding="utf-8") as stream:
+            json.dump(data["key"], stream)
+        print("[앱] 복구 완료, 새 키 번호:", reply[1])
+        return reply
+    bundle.parent.mkdir(parents=True, exist_ok=True)
+    bundle.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    print("[앱] 복구 단계 완료:", a.cmd)
+    return reply
 
 
 if __name__ == "__main__":

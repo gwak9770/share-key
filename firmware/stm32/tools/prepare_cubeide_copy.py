@@ -131,7 +131,7 @@ def prepare_main_text(text):
 
 
 def prepare_hal_conf(text):
-    for module in ["TIM", "I2C", "IWDG"]:
+    for module in ["TIM", "I2C", "IWDG", "FLASH"]:
         define = "#define HAL_" + module + "_MODULE_ENABLED"
         if not re.search(r"^\s*#define\s+HAL_" + module + r"_MODULE_ENABLED\b", text, re.M):
             commented = r"/\*\s*#define\s+HAL_" + module + r"_MODULE_ENABLED\s*\*/"
@@ -170,7 +170,7 @@ def main():
     main_text = prepare_main_text(required[2].read_text(encoding="utf-8-sig"))
     conf_text = prepare_hal_conf(required[3].read_text(encoding="utf-8-sig"))
     hal = cube/"Drivers/STM32F4xx_HAL_Driver"
-    driver_names = ["tim", "tim_ex", "i2c", "i2c_ex", "iwdg"]
+    driver_names = ["tim", "tim_ex", "i2c", "i2c_ex", "iwdg", "flash", "flash_ex"]
     if not all((hal/"Src"/("stm32f4xx_hal_"+n+".c")).is_file() for n in driver_names):
         raise SystemExit("STM32CubeF4 root lacks required HAL sources.")
     if not (hal/"Inc/stm32f4xx_hal_tim.h").is_file():
@@ -193,6 +193,13 @@ def main():
         for sub in ["Inc", "Src"]:
             for item in (package/"Core"/sub).iterdir():
                 if item.is_file(): shutil.copy2(item, dest/"Core"/sub/item.name)
+        # Reserve the journal in every copied local linker; never alter source project.
+        for linker in dest.rglob("*.ld"):
+            text=linker.read_text(encoding="utf-8-sig")
+            pattern=r"(\bFLASH\s*(?:\([^)]*\))?\s*:\s*ORIGIN\s*=\s*0x08000000\s*,\s*LENGTH\s*=\s*)(?:2048[Kk]|2[Mm]|1792[Kk])\b"
+            text,count=re.subn(pattern,lambda m:m[1]+"1792K",text)
+            if count!=1: raise RuntimeError("Review FLASH journal reservation manually: "+str(linker))
+            linker.write_text(text,encoding="utf-8")
         # Never include PC test mains in target Core/Src.
         for name in ["main_pc.c", "test_vectors.c"]:
             p = dest/"Core/Src"/name
@@ -214,7 +221,10 @@ def main():
             "Keep F429 startup/linker, USART3 IRQ and RNG/clock generation.\n"
             "Only Core/Src/port_stm32.c owns UART callbacks.\n"
             "Review duplicate callbacks or custom existing code before flashing.\n"
-            "Default: A/C mode C, servo on, motors/RTC/OLED/endpoints off.\n"
+            "Default: mode C, Flash/servo/OLED on; motors/RTC/endpoints off.\n"
+            "Last 256KiB reserved; keep loadable code/constants below 0x08100000.\n"
+            "Blank Flash requires server-issued RBEGIN/RECOVER commissioning.\n"
+            "Full-chip erase destroys stored state; power-cut tests need all power removed.\n"
             "CubeMX regeneration can change HAL driver selection: recheck after generation.\n",
             encoding="utf-8")
     except Exception:

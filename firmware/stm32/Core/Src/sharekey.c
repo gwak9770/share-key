@@ -1,7 +1,9 @@
 #include "sharekey.h"
+/* Policy version: 20261118-flash-recovery-1; keep sharekey.h in sync. */
 #include "sk_crypto.h"
 #include <string.h>
 #include <stdio.h>
+_Static_assert(SK_MAX_KEYS==8, "Update the versioned Flash format before changing key capacity");
 
 /* 개발용 마스터키 00 01 ... 1F  (실제 사용 금지. 서버 common.py 의 K_V 와 같아야 함) */
 static const uint8_t K_V[32] = {
@@ -28,9 +30,50 @@ static char     sync_rid[3];
 static int      sync_pending;
 static int      online = -1;              /* -1 모름, 0 오프라인, 1 온라인 */
 static char     out[SK_LINE_MAX], msgbuf[96];
+static const sk_store_io_t *storage_io;
+static sk_store_t storage;
+static int recovery_required, recovery_pending;
+static uint8_t recovery_nonce[16];
+void sk_use_storage(const sk_store_io_t *io) { storage_io=io; }
+int sk_recovery_needed(void) { return recovery_required; }
 
 /* ---------- 작은 도구 ---------- */
-static void put_u32(uint8_t *p, uint32_t v) { p[0]=v>>24; p[1]=v>>16; p[2]=v>>8; p[3]=(uint8_t)v; }
+static void put_u32(uint8_t *p, uint32_t v) { p[0]=(uint8_t)(v>>24); p[1]=(uint8_t)(v>>16); p[2]=(uint8_t)(v>>8); p[3]=(uint8_t)v; }
+
+static uint32_t get_u32(const uint8_t *p) {
+    return (uint32_t)p[0]<<24 | (uint32_t)p[1]<<16 | (uint32_t)p[2]<<8 | p[3];
+}
+static void pack_state(uint8_t image[SK_STORE_IMAGE_SIZE]) {
+    memset(image,0,SK_STORE_IMAGE_SIZE); put_u32(image,ver);
+    for (unsigned i=0;i<SK_MAX_KEYS;++i) {
+        const sk_key_t *k=&keys[i]; uint8_t *p=image+4+16*i;
+        if (!k->used) continue;
+        put_u32(p,k->kid); put_u32(p+4,k->exp);
+        p[8]=k->limit; p[9]=k->remaining; p[10]=k->sit; p[11]=k->perm;
+        p[12]=k->state; p[13]=1;
+    }
+}
+static int unpack_state(const uint8_t *image) {
+    memset(keys,0,sizeof keys); ver=get_u32(image);
+    for (unsigned i=0;i<SK_MAX_KEYS;++i) {
+        const uint8_t *p=image+4+16*i; sk_key_t *k=&keys[i];
+        if (p[13]>1 || p[14] || p[15]) return 0;
+        if (!p[13]) { for (unsigned j=0;j<16;++j) if (p[j]) return 0; continue; }
+        if (p[9]>p[8] || p[12]>ST_RETURNED) return 0;
+        k->used=1; k->kid=get_u32(p); k->exp=get_u32(p+4);
+        k->limit=p[8]; k->remaining=p[9]; k->sit=p[10]; k->perm=p[11]; k->state=p[12];
+        for (unsigned j=0;j<i;++j) if (keys[j].used && keys[j].kid==k->kid) return 0;
+    }
+    return 1;
+}
+static int persist(void) {
+    uint8_t image[SK_STORE_IMAGE_SIZE];
+    if (!storage_io) return 1;
+    pack_state(image);
+    if (sk_store_save(&storage,image)) return 1;
+    recovery_required=1; recovery_pending=0;
+    sk_port_log("STORAGE RECOVERY REQUIRED"); return 0;
+}
 
 static int hexval(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -68,7 +111,7 @@ static sk_key_t *find(uint32_t kid) {
 }
 int sk_get_key_view(uint32_t kid, sk_key_view_t *view) {
     const sk_key_t *k = find(kid);
-    if (!k || !view) return 0;
+    if (!k || !view || recovery_required) return 0;
     view->remaining = use_cnt ? (int)k->remaining : -1;
     memcpy(view->blocked_reason, k->state == ST_REVOKED ? "03" :
            k->state == ST_RETURNED ? "09" : "00", 3u);
@@ -104,9 +147,49 @@ void sk_sync_tag(uint32_t v, const uint8_t nonce[16], const uint32_t *kids, cons
 }
 
 /* ---------- 판단: 등록 → 인증값 → nonce → 취소/반납 → 기간 → (반납) → 권한 → 횟수 → 실행 ---------- */
+void sk_recovery_tag(uint32_t v,const uint8_t nonce[16],uint32_t kid,
+                     uint32_t exp,uint8_t limit,uint8_t sit,uint8_t perm,uint8_t tag[32]) {
+    uint8_t m[42]; memcpy(m,"RECOVER",7); put_u32(m+7,SK_VID); memcpy(m+11,nonce,16);
+    put_u32(m+27,v); put_u32(m+31,kid); put_u32(m+35,exp);
+    m[39]=limit; m[40]=sit; m[41]=perm;
+    sk_hmac_sha256(K_V,32,m,sizeof m,tag);
+}
+static void recovery_fail(const char *rid,const char *why) {
+    snprintf(out,sizeof out,"%s|RFAIL|%s",rid,why); sk_port_send_line(out);
+}
+static void on_recovery(char **f,int nf) {
+    if (!storage_io || !recovery_required) { recovery_fail(f[0],"0A"); return; }
+    if (!strcmp(f[1],"RBEGIN") && nf==2) {
+        char nh[33];
+        if (!recovery_pending) { sk_port_random(recovery_nonce,16); recovery_pending=1; }
+        to_hex(recovery_nonce,16,nh);
+        snprintf(out,sizeof out,"%s|RCHAL|%08lX|%s",f[0],(unsigned long)SK_VID,nh);
+        sk_port_send_line(out); return;
+    }
+    uint32_t vid,nv,kid,exp; uint8_t nonce[16],limit,sit,perm,tag[32],expect[32];
+    if (strcmp(f[1],"RECOVER") || nf!=11 || !parse_u32(f[2],&vid) || vid!=SK_VID ||
+        !parse_hex(f[3],nonce,16) || !parse_u32(f[4],&nv) || !parse_u32(f[5],&kid) ||
+        !parse_u32(f[6],&exp) || !parse_u8(f[7],&limit) || !parse_u8(f[8],&sit) ||
+        !parse_u8(f[9],&perm) || !parse_hex(f[10],tag,32)) { recovery_fail(f[0],"FF"); return; }
+    if (!recovery_pending || memcmp(nonce,recovery_nonce,16)) { recovery_fail(f[0],"02"); return; }
+    sk_recovery_tag(nv,nonce,kid,exp,limit,sit,perm,expect);
+    if (!sk_ct_equal(tag,expect,32)) { recovery_fail(f[0],"01"); return; }
+    recovery_pending=0;
+    if (use_exp && sk_port_unix_time()>exp) { recovery_fail(f[0],"04"); return; }
+    memset(keys,0,sizeof keys); ver=nv;
+    keys[0].used=1; keys[0].kid=kid; keys[0].exp=exp; keys[0].limit=limit;
+    keys[0].remaining=limit; keys[0].sit=sit; keys[0].perm=perm;
+    uint8_t image[SK_STORE_IMAGE_SIZE]; pack_state(image);
+    if (!sk_store_recover(&storage,image)) { recovery_fail(f[0],"0A"); return; }
+    recovery_required=0; sync_pending=0; online=-1;
+    snprintf(out,sizeof out,"%s|RECOVERED|%08lX",f[0],(unsigned long)kid);
+    sk_port_log("STORAGE RECOVERY COMPLETE"); sk_port_send_line(out);
+}
+
 static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t nonce[16], const uint8_t tag[32]) {
     uint8_t ki[32], expect[32];
     int pend_ok = 0;
+    if (recovery_required) return "0A";
     if (!k) return "08";
     /* nonce 는 성공/실패 관계없이 1회용: 먼저 꺼내 놓고 무효화 */
     if (k->nonce_valid && memcmp(k->nonce, nonce, 16) == 0 &&
@@ -122,15 +205,14 @@ static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t 
     if (use_exp && sk_port_unix_time() > k->exp) return "04";
     if (cmd == 3) {                     /* 반납: 차량 내부 즉시 무효화, 횟수 차감 없음 */
         k->state = ST_RETURNED;
-        /* TODO(11/16): FRAM 에 상태 저장 */
-        return "00";
+        return persist() ? "00" : "0A";
     }
     if (!((cmd == 1 && (k->perm & 0x01)) || (cmd == 2 && (k->perm & 0x02)))) return "06";
     if (use_cnt) {
         if (k->remaining == 0) return "05";
-        k->remaining--;                 /* 차감 → (11/16: FRAM 저장) → 실행 순서 유지 */
+        k->remaining--;                 /* 차감 → 플래시 저장 → 실행 */
     }
-    return "00";
+    return persist() ? "00" : "0A";
 }
 
 static void on_resp(char **f, int nf) {     /* RID|RESP|KID|CMD|NONCE|TAG */
@@ -159,6 +241,7 @@ static void on_req(char **f, int nf) {      /* RID|REQ|KID|CMD */
         snprintf(out, sizeof out, "%s|ERR|FF", f[0]); sk_port_send_line(out); return;
     }
     sk_key_t *k = find(kid);
+    if (recovery_required) { snprintf(out,sizeof out,"%s|RES|%08lX|D|0A|FF",f[0],(unsigned long)kid); sk_port_deny(cmd,"0A"); sk_port_send_line(out); return; }
     if (!k) { snprintf(out, sizeof out, "%s|RES|%08lX|D|08|00", f[0], (unsigned long)kid); sk_port_send_line(out); return; }
     sk_port_random(k->nonce, 16);
     k->nonce_valid = 1; k->nonce_ms = sk_port_millis();
@@ -173,6 +256,7 @@ static void on_key(char **f, int nf) {      /* RID|KEY|KID|EXP|LIMIT|SIT|PERM|TA
         !parse_u8(f[5], &sit) || !parse_u8(f[6], &perm) || !parse_hex(f[7], tag, 32)) {
         snprintf(out, sizeof out, "%s|ERR|FF", f[0]); sk_port_send_line(out); return;
     }
+    if (recovery_required) { snprintf(out,sizeof out,"%s|KEYNG|%08lX|0A",f[0],(unsigned long)kid); sk_port_send_line(out); return; }
     sk_key_tag(kid, exp, limit, sit, perm, expect);
     if (!sk_ct_equal(expect, tag, 32)) {
         logf_("KEY rejected (bad tag)");
@@ -186,15 +270,16 @@ static void on_key(char **f, int nf) {      /* RID|KEY|KID|EXP|LIMIT|SIT|PERM|TA
         k->used = 1; k->kid = kid; k->exp = exp; k->limit = limit; k->remaining = limit;
         k->sit = sit; k->perm = perm; k->state = ST_VALID;
     }
+    if (!persist()) { snprintf(out,sizeof out,"%s|KEYNG|%08lX|0A",f[0],(unsigned long)kid); sk_port_send_line(out); return; }
     snprintf(msgbuf, sizeof msgbuf, "KEY ok kid=%08lX limit=%u", (unsigned long)kid, limit); logf_(msgbuf);
     snprintf(out, sizeof out, "%s|KEYOK|%08lX", f[0], (unsigned long)kid); sk_port_send_line(out);
 }
 
 static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entries|TAG */
-    uint32_t vid, nv, kids[SK_MAX_SYNC_ENTRIES]; uint8_t sts[SK_MAX_SYNC_ENTRIES];
+    uint32_t vid, nv=0, kids[SK_MAX_SYNC_ENTRIES]; uint8_t sts[SK_MAX_SYNC_ENTRIES];
     uint8_t rn[16], tag[32], expect[32], cnt;
     int n = 0, ok = 0;
-    if (!sync_pending || strcmp(f[0], sync_rid) != 0) return;   /* 내가 보낸 요청의 응답만 */
+    if (recovery_required || !sync_pending || strcmp(f[0], sync_rid) != 0) return;   /* 내가 보낸 요청의 응답만 */
     sync_pending = 0;
     if (nf == 8 && parse_u32(f[2], &vid) && parse_u32(f[3], &nv) && parse_hex(f[4], rn, 16) &&
         parse_u8(f[5], &cnt) && parse_hex(f[7], tag, 32) && cnt <= SK_MAX_SYNC_ENTRIES) {
@@ -213,7 +298,7 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
         if (ok && n != cnt) ok = 0;
         if (ok) {
             sk_sync_tag(nv, rn, kids, sts, n, expect);
-            ok = memcmp(rn, sync_nonce, 16) == 0 && nv >= ver && sk_ct_equal(expect, tag, 32);
+            ok = vid==SK_VID && memcmp(rn, sync_nonce, 16) == 0 && nv >= ver && sk_ct_equal(expect, tag, 32);
         }
     }
     if (!ok) { logf_("SYNC rejected (nonce/ver/tag)"); return; }
@@ -225,6 +310,7 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
     }
     if (nv > ver) { snprintf(msgbuf, sizeof msgbuf, "SYNC applied ver %lu -> %lu", (unsigned long)ver, (unsigned long)nv); logf_(msgbuf); }
     ver = nv;
+    if (!persist()) return;
     if (online != 1) { online = 1; logf_("server sync ok -> ONLINE"); }
     snprintf(out, sizeof out, "%s|SYNCACK|%08lX|%08lX", f[0], (unsigned long)SK_VID, (unsigned long)ver);
     sk_port_send_line(out);
@@ -236,16 +322,25 @@ void sk_init(char mode) {
     use_exp = (mode == 'B' || mode == 'D');
     use_cnt = (mode == 'C' || mode == 'D');
     ver = 0; sync_pending = 0; online = -1;
+    recovery_required=0; recovery_pending=0;
+    if (storage_io) {
+        uint8_t image[SK_STORE_IMAGE_SIZE];
+        if (!sk_store_open(&storage,storage_io,image) || !unpack_state(image)) {
+            memset(keys,0,sizeof keys); ver=0; recovery_required=1;
+            sk_port_log("STORAGE RECOVERY REQUIRED");
+        }
+    }
     last_sync = sk_port_millis() - sync_period;     /* 시작 직후 바로 동기화 */
 }
 
 void sk_set_sync_period(uint32_t ms) { sync_period = ms; }
 
 void sk_handle_line(char *line) {
-    char *f[10];
+    char *f[12];
     if (!line[0] || line[0] == '#') return;
-    int nf = split(line, f, 10);
+    int nf = split(line, f, 12);
     if (nf < 2 || strlen(f[0]) != 2) return;
+    if (!strcmp(f[1],"RBEGIN") || !strcmp(f[1],"RECOVER")) { on_recovery(f,nf); return; }
     if      (!strcmp(f[1], "RESP")) on_resp(f, nf);
     else if (!strcmp(f[1], "REQ"))  on_req(f, nf);
     else if (!strcmp(f[1], "KEY"))  on_key(f, nf);
@@ -256,6 +351,7 @@ void sk_handle_line(char *line) {
 }
 
 void sk_poll(void) {
+    if (recovery_required) return;
     uint32_t now = sk_port_millis();
     uint8_t r; char nh[33];
     if ((uint32_t)(now - last_sync) < sync_period) return;

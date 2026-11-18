@@ -9,6 +9,7 @@ ap.add_argument("--mode", default="C", choices="ABCD")
 ap.add_argument("--port", type=int, default=VEHICLE_PORT)
 ap.add_argument("--server", default=f"{SERVER_HOST}:{SERVER_PORT}")
 ap.add_argument("--sync", type=float, default=2.0, help="동기화 주기(초)")
+ap.add_argument("--flash-file", help="PC 플래시 모의 파일. 생략 시 기존 RAM 시연")
 a = ap.parse_args()
 SH, SP = a.server.split(":")
 
@@ -17,7 +18,8 @@ def log(*x):
     print(time.strftime("%H:%M:%S"), f"[차량 {a.mode}]", *x, flush=True)
 
 
-core = VehicleCore(a.mode, log)
+from storage import FlashJournal, MemoryFlash
+core = VehicleCore(a.mode, log, FlashJournal(MemoryFlash(path=a.flash_file)) if a.flash_file else None)
 
 
 class App(socketserver.StreamRequestHandler):
@@ -36,10 +38,14 @@ class App(socketserver.StreamRequestHandler):
 def sync_loop():
     online = None
     while True:
+        request = core.make_syncreq()
+        if request is None:
+            time.sleep(a.sync)
+            continue
         ok = False
         try:
             c = Conn.connect(SH, int(SP), timeout=1.0)
-            p = c.request(*core.make_syncreq())
+            p = c.request(*request)
             if core.apply_sync(p):
                 c.request("SYNCACK", f"{VID:08X}", f"{core.ver:08X}")
                 ok = True
