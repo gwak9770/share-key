@@ -66,7 +66,7 @@
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증·저장 소스의 출처·Git 원본 SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.19. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.20. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -118,9 +118,9 @@
 
 ## 5. 설치·시험·빌드
 
-### 플래시 저장·복구 후보판 (`feat/flash-recovery`)
+### 플래시 저장·복구 (PR #20, 보드 미검증)
 
-최대 8키의 남은 횟수·취소/반납 상태·동기화 버전을 내부 플래시 두 구역에 기록하는 후보 구현이다. 호스트 PC 시험과 실제 보드 결과는 구분한다. **이 후보판의 ARM/CubeIDE 빌드·업로드·실물 전원 차단 시험은 미수행**이다. 실제 휴대폰 앱 대신 아래 앱 스크립트가 요청·발급·운반 역할을 한다.
+최대 8키의 남은 횟수·취소/반납 상태·동기화 버전을 내부 플래시 두 구역에 기록하는 PC 검증 구현이다. 호스트 PC 시험과 실제 보드 결과는 구분한다. **이 구현의 ARM/CubeIDE 빌드·업로드·실물 전원 차단 시험은 미수행**이다. 실제 휴대폰 앱 대신 아래 앱 스크립트가 요청·발급·운반 역할을 한다.
 
 - 보드는 `VC_ENABLE_FLASH=1` 기본. 최초 빈 저장소도 0A(복구 필요)로 제한한다. 서버 일반 키 발급 후 복구 절차로 초기 승인한다. `VC_ENABLE_FLASH=0`은 저장 없는 이전 시연 설정이다.
 - 섹터 22·23(각 128KiB)을 예약한다. `prepare_cubeide_copy.py`는 복사본의 링커 FLASH 길이를 1792K로 변경하고 FLASH HAL 소스를 포함한다. 원본 CubeIDE 프로젝트는 건드리지 않는다. 코드/상수의 load image는 bank 1 안이어야 하며 드라이버가 검사한다.
@@ -294,7 +294,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.19, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.20, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
