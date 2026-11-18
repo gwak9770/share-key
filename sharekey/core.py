@@ -7,7 +7,8 @@ from storage import encode_state, decode_state
 
 
 class VehicleCore:
-    def __init__(self, mode="C", log=print, storage=None):
+    def __init__(self, mode="C", log=print, storage=None, clock=time.monotonic,
+                 reauth_period=60, reauth_grace=30, stop_cutoff=600, reauth_enabled=True):
         self.use_exp = mode in "BD"
         self.use_cnt = mode in "CD"
         self.mode, self.log = mode, log
@@ -20,6 +21,13 @@ class VehicleCore:
         self.storage = storage
         self.recovery_required = False
         self.recovery_nonce = None
+        self.clock, self.reauth_enabled = clock, reauth_enabled
+        self.period_ms, self.grace_ms, self.cutoff_ms = (int(v * 1000) for v in (reauth_period, reauth_grace, stop_cutoff))
+        if not (0 < self.period_ms and 0 <= self.grace_ms and self.period_ms + self.grace_ms < 0x80000000
+                and 0 < self.cutoff_ms < 0x80000000):
+            raise ValueError("잘못된 재인증 시간")
+        self.engine_running = self.engine_warning = self.stopped = self.stop_tracking = False
+        self.engine_kid, self.last_auth, self.stop_started = 0, 0, 0
         if storage is not None:
             image = storage.load()
             try:
@@ -31,11 +39,74 @@ class VehicleCore:
                 self.recovery_required = True
                 self.log("STORAGE RECOVERY REQUIRED")
 
+    def _now(self):
+        return int(round(self.clock() * 1000)) & 0xFFFFFFFF
+
+    def configure_reauth(self, period, grace, cutoff):
+        """차량 로컬 설정/시험용 밀리초. 운행 중 변경 금지."""
+        if self.engine_running or not (0 < period and 0 <= grace and period + grace < 0x80000000
+                                       and 0 < cutoff < 0x80000000):
+            return False
+        self.period_ms, self.grace_ms, self.cutoff_ms = period, grace, cutoff
+        return True
+
+    def set_stopped(self, stopped):
+        """차량 로컬 센서/PC 시험 전용. 네트워크 명령에 연결하지 않는다."""
+        with self.lock:
+            self.stopped = bool(stopped)
+            if not self.stopped:
+                self.stop_tracking = False
+
+    def _engine_stop(self):
+        self.engine_running = self.engine_warning = self.stop_tracking = False
+
+    def _drive_warn(self):
+        if not self.engine_running or self.engine_warning:
+            return True
+        self.engine_warning, self.stop_tracking = True, False
+        self.log("REAUTH REQUIRED: driving continues until local stopped cutoff")
+        k = self.keys.get(self.engine_kid)
+        if k and k["state"] == 0:
+            k["state"] = 3
+            return self._persist()
+        return True
+
+    def _drive_poll(self):
+        if not self.reauth_enabled or not self.engine_running:
+            return
+        now = self._now()
+        if not self.engine_warning and ((now - self.last_auth) & 0xFFFFFFFF) >= self.period_ms + self.grace_ms:
+            self._drive_warn()
+        if not self.engine_warning:
+            return
+        if not self.stopped:
+            self.stop_tracking = False
+            return
+        if not self.stop_tracking:
+            self.stop_tracking, self.stop_started = True, now
+        if ((now - self.stop_started) & 0xFFFFFFFF) >= self.cutoff_ms:
+            self._engine_stop()
+            self.log("REAUTH STOP CUTOFF")
+            self.actuate(5, None)
+
+    def poll(self):
+        with self.lock:
+            self._drive_poll()
+
+    def _drive_status(self):
+        elapsed = (self._now() - self.last_auth) & 0xFFFFFFFF if self.engine_running else 0
+        left = max(0, self.period_ms + self.grace_ms - elapsed) if self.engine_running and not self.engine_warning else 0
+        return ["DSTATE", f"{self.engine_kid if self.engine_running else 0xFFFFFFFF:08X}",
+                str(int(self.engine_running)), str(int(self.engine_warning)), str(int(self.stopped)),
+                f"{elapsed // 1000:08X}", f"{(left + 999) // 1000:08X}"]
+
     def _persist(self):
         if self.storage is None or self.storage.save(encode_state(self.ver, self.keys)):
             return True
         self.recovery_required = True
         self.recovery_nonce = None
+        if self.engine_running and not self.engine_warning:
+            self.engine_warning, self.stop_tracking = True, False
         self.log("STORAGE RECOVERY REQUIRED")
         return False
 
@@ -45,7 +116,7 @@ class VehicleCore:
     def decide(self, kid, cmd, nonce, tag):
         k = self.keys.get(kid)
         pend = self.nonces.pop(kid, None)
-        if self.recovery_required:
+        if self.recovery_required and cmd != 5:
             return "D", "0A", k
         if not k:
             return "D", "08", k
@@ -53,26 +124,57 @@ class VehicleCore:
             return "D", "01", k
         if not pend or pend[0] != nonce or time.time() - pend[1] > NONCE_LIFE:
             return "D", "02", k
+        def reject(why):
+            if self.reauth_enabled and cmd == 4 and self.engine_running and self.engine_kid == kid:
+                if not self._drive_warn():
+                    why = "0A"
+            return "D", why, k
+        if cmd == 5:
+            if not k["perm"] & 2:
+                return "D", "06", k
+            if self.engine_running and self.engine_kid != kid:
+                return "D", "07", k
+            was_running = self.engine_running
+            self._engine_stop()
+            if was_running:
+                self.actuate(5, None)
+            return "A", "00", k
         if k["state"] in (1, 2):
-            return "D", "03" if k["state"] == 1 else "09", k
+            return reject("03" if k["state"] == 1 else "09")
+        if k["state"] == 3 and cmd in (2, 4):
+            return reject("07")
         if self.use_exp and time.time() > k["exp"]:
-            return "D", "04", k
+            return reject("04")
         if cmd == 3:
             k["state"] = 2
         else:
             if cmd not in PERM_BIT or not (k["perm"] & PERM_BIT[cmd]):
-                return "D", "06", k
+                return reject("06")
+            if cmd == 2 and self.engine_running:
+                return reject("07")
+            if cmd == 4 and (not self.reauth_enabled or not self.engine_running or self.engine_kid != kid):
+                return reject("07")
             if self.use_cnt:
                 if k["remaining"] <= 0:
-                    return "D", "05", k
+                    return reject("05")
                 k["remaining"] -= 1
         if not self._persist():
             return "D", "0A", k
-        if cmd != 3:
+        if cmd == 2:
+            self.engine_running = True
+            self.engine_warning = self.stop_tracking = False
+            self.engine_kid, self.last_auth = kid, self._now()
+        if cmd == 4:
+            self.last_auth = self._now()
+        if cmd == 3 and self.engine_running and self.engine_kid == kid:
+            self._drive_warn()
+        if cmd not in (3, 4):
             self.actuate(cmd, k["remaining"] if self.use_cnt else None)
         return "A", "00", k
 
     def _recover(self, p):
+        if self.engine_running:
+            return ["RFAIL", "07"]
         if self.storage is None or not self.recovery_required:
             return ["RFAIL", "0A"]
         if p == ["RBEGIN"]:
@@ -119,6 +221,9 @@ class VehicleCore:
         if kind == "HB":
             return None
         with self.lock:
+            self._drive_poll()
+            if p == ["DSTATUS"]:
+                return self._drive_status()
             if kind in ("RBEGIN", "RECOVER"):
                 return self._recover(p)
             if kind == "KEY":
@@ -138,7 +243,7 @@ class VehicleCore:
                 return ["KEYOK", p[1]]
             if kind == "REQ":
                 kid = int(p[1], 16)
-                if self.recovery_required:
+                if self.recovery_required and int(p[2], 16) != 5:
                     return ["RES", p[1], "D", "0A", "FF"]
                 if kid not in self.keys:
                     return ["RES", p[1], "D", "08", "00"]
@@ -156,6 +261,7 @@ class VehicleCore:
 
     def make_syncreq(self):
         with self.lock:
+            self._drive_poll()
             if self.recovery_required:
                 return None
             if self.sync_waiting:
@@ -169,10 +275,12 @@ class VehicleCore:
 
     def apply_sync(self, p):
         with self.lock:
+            self._drive_poll()
             try:
                 nv, rn, ents = int(p[2], 16), bytes.fromhex(p[3]), dec_entries(p[5])
                 ok = (not self.recovery_required and len(p) == 7 and p[0] == "SYNC"
                       and int(p[1], 16) == VID and len(ents) == int(p[4], 16) <= 16
+                      and all(state in (0, 1) for _, state in ents)
                       and self.sync_nonce is not None and rn == self.sync_nonce
                       and nv >= self.ver and eq(sync_tag(nv, rn, ents), bytes.fromhex(p[6])))
             except (ValueError, IndexError, OverflowError):
@@ -180,16 +288,27 @@ class VehicleCore:
             self.sync_nonce = None
             if not ok:
                 return False
+            drive_revalidated = False
             for kid, state in ents:
                 if kid in self.keys:
                     k = self.keys[kid]
                     if state == 1:
                         k["state"] = 1
-                    elif k["state"] == 0:
+                    elif k["state"] in (0, 3):
+                        k["state"] = 0
                         k["remaining"] = k["limit"]
+                        if self.engine_running and kid == self.engine_kid:
+                            drive_revalidated = True
             self.ver = nv
             if not self._persist():
                 return False
+            if self.engine_running:
+                owner = self.keys.get(self.engine_kid)
+                if owner and owner["state"] != 0:
+                    self._drive_warn()
+                elif drive_revalidated and self.engine_warning:
+                    self.engine_warning = self.stop_tracking = False
+                    self.last_auth = self._now()
             self.sync_waiting = False
             self.sync_misses = 0
             if self.online != 1:

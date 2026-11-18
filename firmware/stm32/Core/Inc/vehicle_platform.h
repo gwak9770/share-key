@@ -12,6 +12,8 @@ typedef struct {
     int remaining, command;
     Result actuation;
     bool actuation_attempted;
+    bool engine_running, reauth_warning, stopped;
+    uint32_t reauth_left_s;
 } VehicleDisplay;
 bool vc_platform_init(void);
 uint32_t vc_platform_millis(void);

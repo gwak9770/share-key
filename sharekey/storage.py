@@ -227,7 +227,7 @@ def decode_state(image):
             if any(slot):
                 raise ValueError("빈 슬롯 손상")
             continue
-        if rem > limit or state > 2 or kid in keys:
+        if rem > limit or state > 3 or kid in keys:
             raise ValueError("잘못된 키 상태")
         keys[kid] = dict(exp=exp, limit=limit, remaining=rem, sit=sit, perm=perm, state=state)
     return ver, keys

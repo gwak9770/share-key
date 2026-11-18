@@ -1,5 +1,6 @@
 #include "sharekey.h"
-/* Policy version: 20261118-offline-three-misses-1; keep sharekey.h in sync. */
+/* Policy version: 20261118-driving-reauth-1; keep sharekey.h in sync. */
+#include "config.h"
 #include "sk_crypto.h"
 #include <string.h>
 #include <stdio.h>
@@ -10,7 +11,7 @@ static const uint8_t K_V[32] = {
     0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
     0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F};
 
-enum { ST_VALID = 0, ST_REVOKED = 1, ST_RETURNED = 2 };
+enum { ST_VALID = 0, ST_REVOKED = 1, ST_RETURNED = 2, ST_PENDING = 3 };
 
 typedef struct {
     uint8_t  used;
@@ -36,6 +37,10 @@ static const sk_store_io_t *storage_io;
 static sk_store_t storage;
 static int recovery_required, recovery_pending;
 static uint8_t recovery_nonce[16];
+static int engine_running, engine_warning, vehicle_stopped, stop_tracking, response_authenticated;
+static uint32_t engine_kid, last_auth, stop_started, reauth_period, reauth_grace, stop_cutoff;
+static void drive_poll(void);
+static int drive_warn(void);
 void sk_use_storage(const sk_store_io_t *io) { storage_io=io; }
 int sk_recovery_needed(void) { return recovery_required; }
 int sk_online_state(void) { return online; }
@@ -63,7 +68,7 @@ static int unpack_state(const uint8_t *image) {
         const uint8_t *p=image+4+16*i; sk_key_t *k=&keys[i];
         if (p[13]>1 || p[14] || p[15]) return 0;
         if (!p[13]) { for (unsigned j=0;j<16;++j) if (p[j]) return 0; continue; }
-        if (p[9]>p[8] || p[12]>ST_RETURNED) return 0;
+        if (p[9]>p[8] || p[12]>ST_PENDING) return 0;
         k->used=1; k->kid=get_u32(p); k->exp=get_u32(p+4);
         k->limit=p[8]; k->remaining=p[9]; k->sit=p[10]; k->perm=p[11]; k->state=p[12];
         for (unsigned j=0;j<i;++j) if (keys[j].used && keys[j].kid==k->kid) return 0;
@@ -76,6 +81,7 @@ static int persist(void) {
     pack_state(image);
     if (sk_store_save(&storage,image)) return 1;
     recovery_required=1; recovery_pending=0;
+    if (engine_running && !engine_warning) { engine_warning=1; stop_tracking=0; }
     sk_port_log("STORAGE RECOVERY REQUIRED"); return 0;
 }
 
@@ -117,12 +123,54 @@ int sk_get_key_view(uint32_t kid, sk_key_view_t *view) {
     const sk_key_t *k = find(kid);
     if (!k || !view || recovery_required) return 0;
     view->remaining = use_cnt ? (int)k->remaining : -1;
-    memcpy(view->blocked_reason, k->state == ST_REVOKED ? "03" :
+    memcpy(view->blocked_reason, k->state == ST_PENDING ? "07" : k->state == ST_REVOKED ? "03" :
            k->state == ST_RETURNED ? "09" : "00", 3u);
     return 1;
 }
 
 static void logf_(const char *m) { sk_port_log(m); }
+
+_Static_assert(VC_REAUTH_PERIOD_S>0 && VC_REAUTH_PERIOD_S+VC_REAUTH_GRACE_S<2147483u,
+               "Reauth duration must fit monotonic unsigned time arithmetic");
+_Static_assert(VC_STOP_CUTOFF_S>0 && VC_STOP_CUTOFF_S<2147483u,"Invalid stopped cutoff");
+int sk_configure_reauth(uint32_t period,uint32_t grace,uint32_t cutoff) {
+    if (engine_running || !period || !cutoff || period>=0x80000000u ||
+        grace>=0x80000000u-period || cutoff>=0x80000000u) return 0;
+    reauth_period=period; reauth_grace=grace; stop_cutoff=cutoff; return 1;
+}
+void sk_set_stopped(int stopped) {
+    vehicle_stopped=stopped!=0;
+    if (!vehicle_stopped) stop_tracking=0;
+}
+void sk_local_engine_stop(void) { engine_running=engine_warning=stop_tracking=0; }
+void sk_drive_view(sk_drive_view_t *view) {
+    if (!view) return;
+    uint32_t elapsed=engine_running ? sk_port_millis()-last_auth : 0;
+    view->kid=engine_running ? engine_kid : 0xFFFFFFFFu;
+    view->running=engine_running; view->warning=engine_warning; view->stopped=vehicle_stopped;
+    view->elapsed_ms=elapsed;
+    view->left_ms=engine_running && !engine_warning && elapsed<reauth_period+reauth_grace ?
+        reauth_period+reauth_grace-elapsed : 0;
+}
+static int drive_warn(void) {
+    if (!engine_running || engine_warning) return 1;
+    engine_warning=1; stop_tracking=0;
+    sk_port_log("REAUTH REQUIRED: driving continues until local stopped cutoff");
+    sk_key_t *k=find(engine_kid);
+    if (k && k->state==ST_VALID) { k->state=ST_PENDING; return persist(); }
+    return 1;
+}
+static void drive_poll(void) {
+    if (!VC_REAUTH_ENABLE || !engine_running) return;
+    uint32_t now=sk_port_millis();
+    if (!engine_warning && (uint32_t)(now-last_auth)>=reauth_period+reauth_grace) (void)drive_warn();
+    if (!engine_warning) return;
+    if (!vehicle_stopped) { stop_tracking=0; return; }
+    if (!stop_tracking) { stop_tracking=1; stop_started=now; }
+    if ((uint32_t)(now-stop_started)>=stop_cutoff) {
+        sk_local_engine_stop(); sk_port_log("REAUTH STOP CUTOFF"); sk_port_actuate(5,-1);
+    }
+}
 
 /* ---------- 인증값 계산 (Python common.py 와 동일) ---------- */
 void sk_derive(uint32_t kid, uint8_t ki[32]) {            /* HMAC(K_v, "user" ‖ KID) */
@@ -162,6 +210,7 @@ static void recovery_fail(const char *rid,const char *why) {
     snprintf(out,sizeof out,"%s|RFAIL|%s",rid,why); sk_port_send_line(out);
 }
 static void on_recovery(char **f,int nf) {
+    if (engine_running) { recovery_fail(f[0],"07"); return; }
     if (!storage_io || !recovery_required) { recovery_fail(f[0],"0A"); return; }
     if (!strcmp(f[1],"RBEGIN") && nf==2) {
         char nh[33];
@@ -193,7 +242,8 @@ static void on_recovery(char **f,int nf) {
 static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t nonce[16], const uint8_t tag[32]) {
     uint8_t ki[32], expect[32];
     int pend_ok = 0;
-    if (recovery_required) return "0A";
+    response_authenticated=0;
+    if (recovery_required && cmd!=5) return "0A";
     if (!k) return "08";
     /* nonce 는 성공/실패 관계없이 1회용: 먼저 꺼내 놓고 무효화 */
     if (k->nonce_valid && memcmp(k->nonce, nonce, 16) == 0 &&
@@ -204,14 +254,23 @@ static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t 
     sk_auth_tag(ki, kid, cmd, nonce, expect);
     if (!sk_ct_equal(expect, tag, 32)) return "01";
     if (!pend_ok)                       return "02";
+    response_authenticated=1;
+    if (cmd==5) {
+        if (!(k->perm&0x02)) return "06";
+        if (engine_running && engine_kid!=kid) return "07";
+        return "00";
+    }
     if (k->state == ST_REVOKED)         return "03";
     if (k->state == ST_RETURNED)        return "09";
+    if (k->state==ST_PENDING && (cmd==2 || cmd==4)) return "07";
     if (use_exp && sk_port_unix_time() > k->exp) return "04";
     if (cmd == 3) {                     /* 반납: 차량 내부 즉시 무효화, 횟수 차감 없음 */
         k->state = ST_RETURNED;
         return persist() ? "00" : "0A";
     }
-    if (!((cmd == 1 && (k->perm & 0x01)) || (cmd == 2 && (k->perm & 0x02)))) return "06";
+    if (!((cmd == 1 && (k->perm & 0x01)) || ((cmd == 2 || cmd==4) && (k->perm & 0x02)))) return "06";
+    if (cmd==2 && engine_running) return "07";
+    if (cmd==4 && (!VC_REAUTH_ENABLE || !engine_running || engine_kid!=kid)) return "07";
     if (use_cnt) {
         if (k->remaining == 0) return "05";
         k->remaining--;                 /* 차감 → 플래시 저장 → 실행 */
@@ -226,11 +285,20 @@ static void on_resp(char **f, int nf) {     /* RID|RESP|KID|CMD|NONCE|TAG */
         snprintf(out, sizeof out, "%s|ERR|FF", f[0]); sk_port_send_line(out); return;
     }
     sk_key_t *k = find(kid);
+    int engine_was_running=engine_running;
     const char *why = decide(k, kid, cmd, nonce, tag);
+    if (VC_REAUTH_ENABLE && cmd==4 && response_authenticated && engine_running && engine_kid==kid && strcmp(why,"00"))
+        if (!drive_warn()) why="0A";
     char rem[3] = "FF";
     if (k && use_cnt) snprintf(rem, sizeof rem, "%02X", k->remaining);
     int ok = (why[0] == '0' && why[1] == '0');
-    if (ok) sk_port_actuate(cmd, (k && use_cnt && cmd != 3) ? k->remaining : -1);
+    if (ok) {
+        if (cmd==2) { engine_running=1; engine_warning=stop_tracking=0; engine_kid=kid; last_auth=sk_port_millis(); }
+        if (cmd==4) last_auth=sk_port_millis();
+        if (cmd==5) sk_local_engine_stop();
+        if (cmd==3 && engine_running && engine_kid==kid) (void)drive_warn();
+        if (cmd!=4 && (cmd!=5 || engine_was_running)) sk_port_actuate(cmd, (k && use_cnt && cmd!=3 && cmd!=5) ? k->remaining : -1);
+    }
     else {
         snprintf(msgbuf, sizeof msgbuf, "DENY kid=%08lX cmd=%u reason=%s", (unsigned long)kid, cmd, why);
         logf_(msgbuf); sk_port_deny(cmd, why);
@@ -245,7 +313,7 @@ static void on_req(char **f, int nf) {      /* RID|REQ|KID|CMD */
         snprintf(out, sizeof out, "%s|ERR|FF", f[0]); sk_port_send_line(out); return;
     }
     sk_key_t *k = find(kid);
-    if (recovery_required) { snprintf(out,sizeof out,"%s|RES|%08lX|D|0A|FF",f[0],(unsigned long)kid); sk_port_deny(cmd,"0A"); sk_port_send_line(out); return; }
+    if (recovery_required && cmd!=5) { snprintf(out,sizeof out,"%s|RES|%08lX|D|0A|FF",f[0],(unsigned long)kid); sk_port_deny(cmd,"0A"); sk_port_send_line(out); return; }
     if (!k) { snprintf(out, sizeof out, "%s|RES|%08lX|D|08|00", f[0], (unsigned long)kid); sk_port_send_line(out); return; }
     sk_port_random(k->nonce, 16);
     k->nonce_valid = 1; k->nonce_ms = sk_port_millis();
@@ -294,7 +362,7 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
                 char kb[9], sb[3];
                 if (strlen(p) < 11 || p[8] != ':') { ok = 0; break; }
                 memcpy(kb, p, 8); kb[8] = 0; memcpy(sb, p + 9, 2); sb[2] = 0;
-                if (!parse_u32(kb, &kids[n]) || !parse_u8(sb, &sts[n])) { ok = 0; break; }
+                if (!parse_u32(kb, &kids[n]) || !parse_u8(sb, &sts[n]) || sts[n]>1) { ok = 0; break; }
                 n++; p += 11;
                 if (*p == ',') p++; else if (*p) { ok = 0; break; }
             }
@@ -306,15 +374,26 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
         }
     }
     if (!ok) { logf_("SYNC rejected (nonce/ver/tag)"); return; }
+    int drive_revalidated=0;
     for (int i = 0; i < n; i++) {
         sk_key_t *k = find(kids[i]);
         if (!k) continue;
         if (sts[i] == ST_REVOKED) k->state = ST_REVOKED;
-        else if (k->state == ST_VALID) k->remaining = k->limit;   /* 인증된 동기화만 횟수 복구 */
+        else if (k->state == ST_VALID || k->state==ST_PENDING) {
+            k->state=ST_VALID; k->remaining=k->limit;
+            if (engine_running && k->kid==engine_kid) drive_revalidated=1;
+        }
     }
     if (nv > ver) { snprintf(msgbuf, sizeof msgbuf, "SYNC applied ver %lu -> %lu", (unsigned long)ver, (unsigned long)nv); logf_(msgbuf); }
     ver = nv;
     if (!persist()) return;
+    if (engine_running) {
+        sk_key_t *owner=find(engine_kid);
+        if (owner && owner->state!=ST_VALID) (void)drive_warn();
+        else if (drive_revalidated && engine_warning) {
+            engine_warning=stop_tracking=0; last_auth=sk_port_millis();
+        }
+    }
     sync_waiting=0; missed_syncs=0;
     if (online != 1) { online = 1; logf_("server sync ok -> ONLINE"); }
     snprintf(out, sizeof out, "%s|SYNCACK|%08lX|%08lX", f[0], (unsigned long)SK_VID, (unsigned long)ver);
@@ -323,6 +402,9 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
 
 /* ---------- 공개 함수 ---------- */
 void sk_init(char mode) {
+    sk_local_engine_stop(); vehicle_stopped=0;
+    reauth_period=VC_REAUTH_PERIOD_S*1000u; reauth_grace=VC_REAUTH_GRACE_S*1000u;
+    stop_cutoff=VC_STOP_CUTOFF_S*1000u;
     memset(keys, 0, sizeof keys);
     use_exp = (mode == 'B' || mode == 'D');
     use_cnt = (mode == 'C' || mode == 'D');
@@ -346,6 +428,14 @@ void sk_handle_line(char *line) {
     if (!line[0] || line[0] == '#') return;
     int nf = split(line, f, 12);
     if (nf < 2 || strlen(f[0]) != 2) return;
+    drive_poll();
+    if (!strcmp(f[1],"DSTATUS") && nf==2) {
+        sk_drive_view_t d; sk_drive_view(&d);
+        snprintf(out,sizeof out,"%s|DSTATE|%08lX|%d|%d|%d|%08lX|%08lX",f[0],
+                 (unsigned long)d.kid,d.running,d.warning,d.stopped,
+                 (unsigned long)(d.elapsed_ms/1000u),(unsigned long)((d.left_ms+999u)/1000u));
+        sk_port_send_line(out); return;
+    }
     if (!strcmp(f[1],"RBEGIN") || !strcmp(f[1],"RECOVER")) { on_recovery(f,nf); return; }
     if      (!strcmp(f[1], "RESP")) on_resp(f, nf);
     else if (!strcmp(f[1], "REQ"))  on_req(f, nf);
@@ -357,6 +447,7 @@ void sk_handle_line(char *line) {
 }
 
 void sk_poll(void) {
+    drive_poll();
     if (recovery_required) return;
     uint32_t now = sk_port_millis();
     uint8_t r; char nh[33];

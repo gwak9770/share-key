@@ -15,6 +15,10 @@ static uint32_t allow_started, deny_started;
 static bool last_moving, return_candidate, return_stable, return_released;
 static uint32_t return_changed;
 static Fault reported_fault;
+#if VC_DEMO_DRIVE_INPUT
+static bool drive_candidate, drive_stable, drive_released, drive_stopped;
+static uint32_t drive_changed;
+#endif
 #if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
 static bool door_observed, previous_door_closed;
 #endif
@@ -37,6 +41,7 @@ static void update_control(uint32_t now) {
         char msg[96];
         snprintf(msg, sizeof(msg), "CONTROL FAULT=%s", control_fault(controller.fault));
         vc_platform_log(msg);
+        if (controller.fault!=FAULT_NONE) sk_local_engine_stop();
     }
     if (last_moving && !controller.moving && controller.fault == FAULT_NONE) {
         char msg[96];
@@ -167,6 +172,10 @@ bool vehicle_app_init(void) {
     active_mode = select_mode();
     display.mode = active_mode;
     sk_init(active_mode);
+#if VC_DEMO_DRIVE_INPUT
+    drive_candidate=drive_stable=drive_released=drive_stopped=false;
+    drive_changed=vc_platform_millis();
+#endif
     vc_platform_apply(controller.output);
     vc_platform_log("boot F429 vehicle control v2");
     char msg[100];
@@ -263,7 +272,22 @@ void vehicle_app_step(void) {
             vc_platform_log("RX DROP invalid/overlength line");
         }
     }
+#if VC_DEMO_DRIVE_INPUT
+    bool button=vc_platform_mode_button();
+    if (button!=drive_candidate) { drive_candidate=button; drive_changed=vc_platform_millis(); }
+    if ((uint32_t)(vc_platform_millis()-drive_changed)>=DEBOUNCE_MS) {
+        if (!button) drive_released=true;
+        if (button && !drive_stable && drive_released) {
+            drive_stopped=!drive_stopped; sk_set_stopped(drive_stopped);
+            vc_platform_log(drive_stopped ? "LOCAL MOTION STOP (demo)" : "LOCAL MOTION DRIVE (demo)");
+        }
+        drive_stable=button;
+    }
+#endif
     sk_poll();
+    sk_drive_view_t driving; sk_drive_view(&driving);
+    display.engine_running=driving.running!=0; display.reauth_warning=driving.warning!=0;
+    display.stopped=driving.stopped!=0; display.reauth_left_s=(driving.left_ms+999u)/1000u;
     refresh_key_display(false);
     now = vc_platform_millis();
     update_control(now);
@@ -291,6 +315,7 @@ Result vehicle_app_request_lock(void) {
     return request(ACT_LOCK, 0, vc_platform_millis());
 }
 void vehicle_app_stop(void) {
+    sk_local_engine_stop();
     control_stop(&controller, vc_platform_millis());
     vc_platform_apply(controller.output);
     last_moving = false;
@@ -306,13 +331,14 @@ void vehicle_on_return_button(void) {
     vc_platform_log("RETURN BUTTON: select target KID in application; no key state changed");
 }
 
-/* The unchanged sharekey.c calls these hooks AFTER the original decision path. */
+/* Policy hooks run after the shared core has finished its decision. */
 void sk_port_actuate(int cmd, int remaining) {
     uint32_t now = vc_platform_millis();
     display.policy = 'A'; memcpy(display.reason, "00", 3u);
     display.command = cmd; display.remaining = remaining;
     display.actuation_attempted = false; display.actuation = RES_NOT_READY;
     allow_led = true; deny_led = false; allow_started = now;
+    if (cmd==5) { vehicle_app_stop(); vc_platform_log("ENGINE OFF: authenticated stop or local cutoff"); return; }
     if (cmd == 3) {
         vc_platform_log("AUTH ALLOW RETURN: key marked returned; no physical command assigned");
         return;

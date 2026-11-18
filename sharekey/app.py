@@ -21,6 +21,8 @@ ap.add_argument("--server", default=f"{SERVER_HOST}:{SERVER_PORT}")
 ap.add_argument("--vehicle", default=f"{VEHICLE_HOST}:{VEHICLE_PORT}")
 ap.add_argument("--new-kid", type=lambda v: int(v, 16), help="복구 후 새 키 번호(16진수)")
 ap.add_argument("--bundle", default="recovery/bundle.json", help="복구 운반 파일(저장소에 올리지 않음)")
+ap.add_argument("--period", type=float, default=60, help="drive 명령의 재인증 전송 간격(초)")
+ap.add_argument("--cycles", type=int, default=0, help="drive 재인증 전송 횟수, 0은 Ctrl+C까지")
 
 
 def kpath(kid):
@@ -68,6 +70,28 @@ def use(a, kid, cmd, attack=None):
 def main(argv=None):
     a = ap.parse_args(argv)
     kid = int(a.arg, 16) if a.arg and a.cmd not in ("net",) else None
+    if a.cmd == "driving-status":
+        status = driving_status(a)
+        print(json.dumps(status, ensure_ascii=False))
+        return status
+    if a.cmd == "drive":
+        if a.period <= 0 or a.cycles < 0:
+            raise ValueError("재인증 간격은 양수, 횟수는 0 이상")
+        result = use(a, kid, 2)
+        if not result or result[0] != "A":
+            return result
+        count = 0
+        try:
+            while a.cycles == 0 or count < a.cycles:
+                time.sleep(a.period)
+                result = use(a, kid, 4)
+                count += 1
+                if result[0] != "A":
+                    break
+        except KeyboardInterrupt:
+            pass
+        print("[앱] 자동 재인증 종료. 시동 상태는 차량에서 확인하고 필요하면 stop 명령을 사용하세요.")
+        return result
     if a.cmd in ("recovery-request", "recovery-issue", "recovery-apply"):
         return recovery(a, kid)
     if a.cmd == "issue":
@@ -88,8 +112,8 @@ def main(argv=None):
         k = json.load(open(kpath(kid)))
         c = vehicle(a); p = c.request(*k["key_line"]); c.close()
         print(f"[앱] 차량 키 등록: {'성공' if p[0] == 'KEYOK' else '실패'}")
-    elif a.cmd in ("open", "start", "return"):
-        result = use(a, kid, {"open": 1, "start": 2, "return": 3}[a.cmd])
+    elif a.cmd in ("open", "start", "return", "reauth", "stop"):
+        result = use(a, kid, {"open": 1, "start": 2, "return": 3, "reauth": 4, "stop": 5}[a.cmd])
         if a.cmd == "return" and result and result[0] == "A":
             k = json.load(open(kpath(kid)))
             proof = H(bytes.fromhex(k["ki"]), b"RETURN" + u32(VID) + u32(kid))
@@ -104,6 +128,18 @@ def main(argv=None):
         return use(a, kid, 1, a.cmd)
     else:
         print(__doc__)
+
+
+def driving_status(a):
+    c = vehicle(a)
+    try:
+        p = c.request("DSTATUS")
+    finally:
+        c.close()
+    if len(p) != 7 or p[0] != "DSTATE":
+        raise ValueError("운행 상태 응답 오류")
+    return {"ok": True, "kid": p[1], "running": p[2] == "1", "warning": p[3] == "1",
+            "stopped": p[4] == "1", "elapsed": int(p[5], 16), "left": int(p[6], 16)}
 
 
 def recovery(a, kid):

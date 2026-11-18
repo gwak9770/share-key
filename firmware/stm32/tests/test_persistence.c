@@ -51,6 +51,7 @@ void sk_port_random(uint8_t *p,size_t n) {
     while (n--) { rng=rng*1664525u+1013904223u; *p++=(uint8_t)(rng>>24); }
 }
 void sk_port_actuate(int cmd,int remaining) {
+    if (cmd==5) { ++actions; return; } /* Stop must work even if storage failed. */
     sk_store_t check; uint8_t image[SK_STORE_IMAGE_SIZE];
     assert(sk_store_open(&check,&io,image));
     if (cmd!=3 && remaining>=0) {
@@ -80,6 +81,8 @@ API unsigned bridge_misses(void) { return sk_sync_misses(); }
 API unsigned bridge_offline_logs(void) { return offline_logs; }
 API const char *bridge_advance(uint32_t delta) { reply[0]=0; now_ms+=delta; sk_poll(); return reply; }
 API void bridge_clock(uint32_t value) { now_ms=value; }
+API int bridge_reauth_config(uint32_t period,uint32_t grace,uint32_t cutoff) { return sk_configure_reauth(period,grace,cutoff); }
+API void bridge_stopped(int stopped) { sk_set_stopped(stopped); }
 
 #ifndef SK_BRIDGE_LIBRARY
 static void hex(const uint8_t *p,size_t n,char *s) {
