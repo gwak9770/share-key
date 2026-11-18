@@ -1,5 +1,5 @@
 #include "sharekey.h"
-/* Policy version: 20261118-flash-recovery-1; keep sharekey.h in sync. */
+/* Policy version: 20261118-offline-three-misses-1; keep sharekey.h in sync. */
 #include "sk_crypto.h"
 #include <string.h>
 #include <stdio.h>
@@ -28,6 +28,8 @@ static uint32_t sync_period = 2000, last_sync;
 static uint8_t  sync_nonce[16];
 static char     sync_rid[3];
 static int      sync_pending;
+static int      sync_waiting; /* A rejected response consumes nonce, not the timeout. */
+static unsigned missed_syncs;
 static int      online = -1;              /* -1 모름, 0 오프라인, 1 온라인 */
 static char     out[SK_LINE_MAX], msgbuf[96];
 static const sk_store_io_t *storage_io;
@@ -36,6 +38,8 @@ static int recovery_required, recovery_pending;
 static uint8_t recovery_nonce[16];
 void sk_use_storage(const sk_store_io_t *io) { storage_io=io; }
 int sk_recovery_needed(void) { return recovery_required; }
+int sk_online_state(void) { return online; }
+unsigned sk_sync_misses(void) { return missed_syncs; }
 
 /* ---------- 작은 도구 ---------- */
 static void put_u32(uint8_t *p, uint32_t v) { p[0]=(uint8_t)(v>>24); p[1]=(uint8_t)(v>>16); p[2]=(uint8_t)(v>>8); p[3]=(uint8_t)v; }
@@ -181,7 +185,7 @@ static void on_recovery(char **f,int nf) {
     keys[0].remaining=limit; keys[0].sit=sit; keys[0].perm=perm;
     uint8_t image[SK_STORE_IMAGE_SIZE]; pack_state(image);
     if (!sk_store_recover(&storage,image)) { recovery_fail(f[0],"0A"); return; }
-    recovery_required=0; sync_pending=0; online=-1;
+    recovery_required=0; sync_pending=sync_waiting=0; missed_syncs=0; online=-1;
     snprintf(out,sizeof out,"%s|RECOVERED|%08lX",f[0],(unsigned long)kid);
     sk_port_log("STORAGE RECOVERY COMPLETE"); sk_port_send_line(out);
 }
@@ -311,6 +315,7 @@ static void on_sync(char **f, int nf) {     /* RID|SYNC|VID|VER|NONCE|COUNT|entr
     if (nv > ver) { snprintf(msgbuf, sizeof msgbuf, "SYNC applied ver %lu -> %lu", (unsigned long)ver, (unsigned long)nv); logf_(msgbuf); }
     ver = nv;
     if (!persist()) return;
+    sync_waiting=0; missed_syncs=0;
     if (online != 1) { online = 1; logf_("server sync ok -> ONLINE"); }
     snprintf(out, sizeof out, "%s|SYNCACK|%08lX|%08lX", f[0], (unsigned long)SK_VID, (unsigned long)ver);
     sk_port_send_line(out);
@@ -322,6 +327,7 @@ void sk_init(char mode) {
     use_exp = (mode == 'B' || mode == 'D');
     use_cnt = (mode == 'C' || mode == 'D');
     ver = 0; sync_pending = 0; online = -1;
+    sync_waiting=0; missed_syncs=0;
     recovery_required=0; recovery_pending=0;
     if (storage_io) {
         uint8_t image[SK_STORE_IMAGE_SIZE];
@@ -356,11 +362,16 @@ void sk_poll(void) {
     uint8_t r; char nh[33];
     if ((uint32_t)(now - last_sync) < sync_period) return;
     last_sync = now;
-    if (sync_pending && online != 0) { online = 0; logf_("no server response -> OFFLINE"); }
+    if (sync_waiting) {
+        if (missed_syncs<SK_OFFLINE_MISSES) ++missed_syncs;
+        if (missed_syncs>=SK_OFFLINE_MISSES && online!=0) {
+            online=0; logf_("no server response -> OFFLINE");
+        }
+    }
     sk_port_random(&r, 1);
     snprintf(sync_rid, sizeof sync_rid, "%02X", r);
     sk_port_random(sync_nonce, 16);
-    sync_pending = 1;
+    sync_pending = sync_waiting = 1;
     to_hex(sync_nonce, 16, nh);
     snprintf(out, sizeof out, "%s|SYNCREQ|%08lX|%s|%08lX", sync_rid, (unsigned long)SK_VID, nh, (unsigned long)ver);
     sk_port_send_line(out);

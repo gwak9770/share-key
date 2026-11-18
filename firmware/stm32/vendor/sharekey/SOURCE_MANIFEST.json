@@ -1,11 +1,11 @@
 [
   {
     "file": "Core/Src/sharekey.c",
-    "sha256": "bc370eeff1d7378b26886b72633b5a63dd72b9c81406853a9ea713cf8e3e7609",
+    "sha256": "2efc220299be791c61e6cd33e4956e428ed85a4e9f1f769ab72c40c93734e90d",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.c",
     "modified": true,
     "base_sha256": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
-    "change": "20261118-flash-recovery-1: persistent 8-key state and authenticated recovery; see master design pending version"
+    "change": "20261118-offline-three-misses-1: three unsuccessful sync periods before OFFLINE; authenticated persisted sync resets counter; flash/recovery retained"
   },
   {
     "file": "Core/Src/sk_crypto.c",
@@ -15,11 +15,11 @@
   },
   {
     "file": "Core/Inc/sharekey.h",
-    "sha256": "565b8cc4bf4005cc0c832b7bfe3f76dd830b05da3cbddba70ff49e1d31f937c2",
+    "sha256": "2f41506a578c4854e6c0dda93c5763b005c38b4a85e7a669194001b4279d2381",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.h",
     "modified": true,
     "base_sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
-    "change": "20261118-flash-recovery-1: persistent 8-key state and authenticated recovery; see master design pending version"
+    "change": "20261118-offline-three-misses-1: three unsuccessful sync periods before OFFLINE; authenticated persisted sync resets counter; flash/recovery retained"
   },
   {
     "file": "Core/Inc/sk_crypto.h",
