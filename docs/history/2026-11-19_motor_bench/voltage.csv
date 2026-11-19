@@ -1,0 +1,6 @@
+record_version,work_date,time_kst,measurement_id,measurement_point,drive_condition,measured_value,unit,measurement_count,source,notes
+motor-bench-20261119-v1,2026-11-19,미상,V01,배터리 홀더 출력,무부하,5.54,V,미상,사용자 직접 측정 보고,MDD3A 입력 정지 측정 5.5V와 별도 측정
+motor-bench-20261119-v1,2026-11-19,미상,V02,MDD3A VB+와 VB− 사이,모터 정지,5.5,V,미상,사용자 직접 측정 보고,계측기 표시값;시각·기기 모델·샘플링 미상
+motor-bench-20261119-v1,2026-11-19,미상,V03,MDD3A VB+와 VB− 사이,왼쪽 모터 2개 구동,4.6,V,미상,사용자 직접 측정 보고,순간 최저 전압·부하 조건 미확인
+motor-bench-20261119-v1,2026-11-19,미상,V04,MDD3A VB+와 VB− 사이,오른쪽 모터 2개 구동,4.7,V,미상,사용자 직접 측정 보고,순간 최저 전압·부하 조건 미확인
+motor-bench-20261119-v1,2026-11-19,미상,V05,MDD3A VB+와 VB− 사이,모터 4개 동시 구동,4.2,V,미상,사용자 직접 측정 보고,불안정 구동;4V 미만 순간 하락 여부 미확인

@@ -130,7 +130,18 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
 | `.github/pull_request_template.md`, `.gitignore` | 기존 PR 양식, 비밀정보·빌드 결과·개인 설정 등의 제외 규칙 |
 
-현재 main에는 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. Python 코드는 `sharekey/`에 있지만 공유 폴더의 `sharekey/stm32/` 판단 사본은 넣지 않았습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
+통합 디지털키 펌웨어에는 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. [독립 모터 시험 프로젝트](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)의 소스·IOC·IDE 설정은 예제 폴더에 보관합니다. Python 코드는 `sharekey/`에 있지만 공유 폴더의 `sharekey/stm32/` 판단 사본은 넣지 않았습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
+
+### 11/19 하드웨어 제작·독립 모터 시험
+
+기록 버전 `motor-bench-20261119-v1`, 기반 `e957bd9`, 기준 00 v0.3.24. 실물 결과는 시험 담당자의 보고이며 정확한 시험 횟수·시각은 미상입니다. 모터 시험판의 결과를 기록했습니다.
+
+- MDD3A와 TT 모터 4개, AA 알카라인 4개, 공통 GND, 10kΩ 풀다운 4개를 연결했습니다. 개별 모터·M1/M2·좌우 2개 병렬·USER 버튼 정지 동작은 성공 보고입니다.
+- **모터 4개 동시 구동은 불안정·미완료**입니다. MDD3A 입력 전압은 정지 5.5V, 왼쪽 2개 4.6V, 오른쪽 2개 4.7V, 전체 4.2V로 관측했습니다. 공급 경로 문제는 유력 가설이며 원인 확정·개선 재시험은 미수행입니다.
+- 실제 외부 시험 프로젝트 파일 105개를 원본 해시와 함께 별도 예제로 보존했습니다. 약 100Hz·40% 소프트웨어 PWM, 최대 약 500ms·버튼 재누름 조건의 시험판이며 팀의 TIM1 10kHz·인증 제어와 다릅니다. ARM 재빌드 27개 단위 PASS(1회), CubeIDE GUI 재빌드·업로드·실물 재시험 미수행입니다.
+- 설치 CubeIDE 2.3.0, ETH·USB 활성화, FLASH 2048K는 팀 표준과 다릅니다. 원본 보존을 위해 통합 기준·Core는 고치지 않았습니다. 이번 재조립의 서보·문·시험 정지 스위치·OLED·RTC 연결 및 디지털키 통합 검증도 남았습니다.
+
+자료: [작업 일지](docs/history/2026-11-19_motor_bench/work_log.md), [시험 결과·절차](docs/history/2026-11-19_motor_bench/test_results.md), [트러블슈팅](docs/history/2026-11-19_motor_bench/troubleshooting.md), [배선](docs/history/2026-11-19_motor_bench/wiring.md), [저항 CSV](docs/history/2026-11-19_motor_bench/resistance.csv), [전압 CSV](docs/history/2026-11-19_motor_bench/voltage.csv), [포트폴리오 요약](docs/history/2026-11-19_motor_bench/portfolio.md).
 
 ## 4. 구성과 개발 환경
 
