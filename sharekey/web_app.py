@@ -92,6 +92,40 @@ CMDS = {"issue", "register", "open", "start", "return", "reauth", "stop", "tampe
 OPT = argparse.Namespace()
 AUTO_LOCK = threading.Lock()
 AUTO_STOP = None
+# 화면 표시용 운행 기록 (웹이 보낸 시동·재인증 결과만 기억. 차량 판단과 무관, 웹을 다시 켜면 사라짐)
+DRIVE = {"kid": None, "started": None, "reauth_n": 0, "left": None, "last": None, "last_code": None}
+
+
+def drive_note(cmd, kid, res):
+    with AUTO_LOCK:
+        if cmd == "start" and res["code"] == "A":
+            DRIVE.update(kid=f"{int(kid, 16):08X}", started=time.time(), reauth_n=0,
+                         left=res["left"], last=None, last_code=None)
+        elif cmd == "reauth" and DRIVE["started"] is not None:
+            DRIVE.update(last=time.time(), last_code=res["code"])
+            if res["code"] == "A":
+                DRIVE["reauth_n"] += 1
+                DRIVE["left"] = res["left"]
+        elif cmd == "stop" and res["code"] == "A":
+            DRIVE.update(kid=None, started=None)
+
+
+def drive_view(status):
+    """차량 DSTATE에 웹 기록(운행 시간·재인증 수·남은 오프라인 횟수)을 덧붙인다."""
+    with AUTO_LOCK:
+        if not status.get("running"):
+            DRIVE.update(kid=None, started=None)
+        same = DRIVE["started"] is not None and DRIVE["kid"] == status.get("kid")
+        now = time.time()
+        status.update(
+            drive_s=int(now - DRIVE["started"]) if same else None,
+            reauth_n=DRIVE["reauth_n"] if same else None,
+            reauth_left=DRIVE["left"] if same else None,
+            last_reauth_s=int(now - DRIVE["last"]) if same and DRIVE["last"] else None,
+            last_reauth_ok=(DRIVE["last_code"] == "A") if same and DRIVE["last"] else None,
+            auto=AUTO_STOP is not None and not AUTO_STOP.is_set(),
+            period=getattr(OPT, "reauth_period", 60))
+    return status
 
 
 def stop_auto_reauth():
@@ -112,6 +146,7 @@ def start_auto_reauth(kid):
         while not event.wait(getattr(OPT, "reauth_period", 60)):
             result = run("reauth", kid, 4, None)
             if not result.get("res") or result["res"]["code"] != "A":
+                event.set()                     # 자동 재인증 멈춤을 화면에 표시
                 return
     threading.Thread(target=renew, daemon=True).start()
 
@@ -123,7 +158,8 @@ def run(cmd, kid, limit, net):
     if cmd == "driving-status":
         try:
             with LOCK:
-                return app.driving_status(OPT)
+                status = app.driving_status(OPT)
+            return drive_view(status)
         except (OSError, ValueError, ConnectionError):
             return {"ok": False}
     if cmd == "nextkid":                        # 화면용: 이 폴더에서 아직 발급 안 한 다음 번호
@@ -191,6 +227,8 @@ def run(cmd, kid, limit, net):
     ok = "실패" not in text and "없음" not in text
     if cmd == "register" and "성공" in text:
         REGISTERED.add(f"{int(kid, 16):08X}")
+    if res and cmd in ("start", "reauth", "stop"):
+        drive_note(cmd, kid, res)
     if res and res["code"] == "A":
         if cmd == "start":
             start_auto_reauth(kid)
@@ -466,7 +504,15 @@ function tone(f,ms,at){if(!sndOn)return;try{AC=AC||new (window.AudioContext||win
  o.type='square';o.frequency.value=f;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.12,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+ms/1000+0.02);}catch(e){}}
 function toggleSnd(){sndOn=!sndOn;try{localStorage.setItem('sk_snd',sndOn?'1':'0');}catch(e){}$('snd').textContent=sndOn?'소리 켜짐':'소리 꺼짐';}
 function eng(on){const c=$('car');c.classList.toggle('on',on);$('eng').innerHTML=(on?'<span style="color:var(--okhi)">켜짐</span>':'꺼짐')+'<div class="ts">판단만 (모터 끔)</div>';}
-async function pollDriving(){if(document.hidden)return;try{const o=await(await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'driving-status'})})).json();if(!o.ok){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';return;}eng(o.running);$('drivestatus').textContent=o.running?('운행 중 · '+(o.stopped?'정차 가정':'주행 가정')+' · '+(o.warning?'재인증 필요':('재검증 대기까지 '+o.left+'초'))):'운행 세션 꺼짐';}catch(e){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';}}
+function mmss(s){return Math.floor(s/60)+'분 '+String(s%60).padStart(2,'0')+'초';}
+async function pollDriving(){if(document.hidden)return;try{const o=await(await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'driving-status'})})).json();if(!o.ok){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';return;}eng(o.running);
+ if(!o.running){$('drivestatus').textContent='운행 세션 꺼짐';return;}
+ const L=[];L.push('<b>운행 중</b> · '+(o.stopped?'정차 가정':'주행 가정'));
+ L.push('운행 시간 '+(o.drive_s===null?'— (웹에서 건 시동 아님)':mmss(o.drive_s)));
+ L.push(o.warning?'<span style="color:var(--nohi)">재인증 필요 · 정차가 이어지면 시동 해제</span>':('재검증 대기까지 '+o.left+'초 (마지막 인증 '+o.elapsed+'초 전)'));
+ if(o.reauth_n!==null)L.push('재인증 '+o.reauth_n+'회 성공'+(o.last_reauth_ok===false?' · 마지막 재인증 거부':'')+' · 남은 오프라인 횟수 '+(o.reauth_left===null?'제한 없음':o.reauth_left+'회')+' (마지막 재인증 응답 기준)');
+ L.push(o.auto?('자동 재인증 '+o.period+'초마다'):'자동 재인증 멈춤 · \'지금 재인증\'으로 다시 보낼 수 있음');
+ $('drivestatus').innerHTML=L.join('<br>');}catch(e){$('drivestatus').textContent='차량 운행 상태 연결 확인 필요';}}
 setInterval(pollDriving,1000);
 function fx(k){const c=$('car');
  if(k==='unlock'){tone(1760,70,0);tone(1760,70,140);c.classList.remove('hz');void c.offsetWidth;c.classList.add('hz');}
