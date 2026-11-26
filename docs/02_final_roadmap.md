@@ -255,7 +255,7 @@ PC 반복과 별개로, **장치가 매번 제대로 동작하는지**를 실물
 5. **민감도:** 기준을 10%로 바꿔도 추천이 같은지 표시한다.
 
 ### 7.3 결과물
-`docs/results/recommend.md`: 유형 × (추천 방식, ①, ②, 기준 10%일 때 추천) 표. 생성: `python3 sharekey/experiments/recommend.py --out docs/results/` (11/19 초안, PC 모의). 발표에서는 이 표와 손익 그래프(가로 ② 거부율, 세로 ① 취소 뒤 사용)를 보여 준다.
+`docs/results/recommend.md`: 유형 × (추천 방식, ①, ②, 기준 10%일 때 추천) 표. 생성: `python3 sharekey/experiments/recommend.py --out docs/results/` (11/19 초안, PC 모의). 손익 그래프: `docs/results/tradeoff.svg` (`python3 sharekey/experiments/plot_tradeoff.py --out docs/results/`, 11/26, 세로축은 ① 평균). 발표에서는 이 표와 손익 그래프(가로 ② 거부율, 세로 ① 취소 뒤 사용)를 보여 준다.
 
 ---
 

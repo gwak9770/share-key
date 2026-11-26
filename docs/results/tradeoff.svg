@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 520" width="860" height="520" font-family="Pretendard, Apple SD Gothic Neo, Noto Sans KR, sans-serif" role="img" aria-label="방식별 정상 이용자 거부율과 취소 뒤 평균 사용">
+<rect width="860" height="520" fill="#fcfcfb"/>
+<text x="80" y="26" font-size="17" font-weight="700" fill="#0b0b0b">정상 이용자 거부율 vs 취소 뒤 평균 사용</text>
+<text x="80" y="44" font-size="12" fill="#52514e">PC 모의(D-현실은 Python 모의), 조건 상황 1·2 각 28개. 왼쪽 아래일수록 좋다</text>
+<line x1="80.0" y1="56" x2="80.0" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80.0" y="468" font-size="12" fill="#52514e" text-anchor="middle">0%</text>
+<line x1="158.57142857142856" y1="56" x2="158.57142857142856" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="158.57142857142856" y="468" font-size="12" fill="#52514e" text-anchor="middle">10%</text>
+<line x1="237.14285714285714" y1="56" x2="237.14285714285714" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="237.14285714285714" y="468" font-size="12" fill="#52514e" text-anchor="middle">20%</text>
+<line x1="315.7142857142857" y1="56" x2="315.7142857142857" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="315.7142857142857" y="468" font-size="12" fill="#52514e" text-anchor="middle">30%</text>
+<line x1="394.2857142857143" y1="56" x2="394.2857142857143" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="394.2857142857143" y="468" font-size="12" fill="#52514e" text-anchor="middle">40%</text>
+<line x1="472.85714285714283" y1="56" x2="472.85714285714283" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="472.85714285714283" y="468" font-size="12" fill="#52514e" text-anchor="middle">50%</text>
+<line x1="551.4285714285714" y1="56" x2="551.4285714285714" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="551.4285714285714" y="468" font-size="12" fill="#52514e" text-anchor="middle">60%</text>
+<line x1="630.0" y1="56" x2="630.0" y2="450" stroke="#e1e0d9" stroke-width="1"/>
+<text x="630.0" y="468" font-size="12" fill="#52514e" text-anchor="middle">70%</text>
+<line x1="80" y1="450.0" x2="630" y2="450.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="454.0" font-size="12" fill="#52514e" text-anchor="end">0</text>
+<line x1="80" y1="384.33333333333337" x2="630" y2="384.33333333333337" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="388.33333333333337" font-size="12" fill="#52514e" text-anchor="end">1</text>
+<line x1="80" y1="318.6666666666667" x2="630" y2="318.6666666666667" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="322.6666666666667" font-size="12" fill="#52514e" text-anchor="end">2</text>
+<line x1="80" y1="253.0" x2="630" y2="253.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="257.0" font-size="12" fill="#52514e" text-anchor="end">3</text>
+<line x1="80" y1="187.33333333333334" x2="630" y2="187.33333333333334" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="191.33333333333334" font-size="12" fill="#52514e" text-anchor="end">4</text>
+<line x1="80" y1="121.66666666666666" x2="630" y2="121.66666666666666" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="125.66666666666666" font-size="12" fill="#52514e" text-anchor="end">5</text>
+<line x1="80" y1="56.0" x2="630" y2="56.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72" y="60.0" font-size="12" fill="#52514e" text-anchor="end">6</text>
+<text x="355.0" y="496" font-size="13" fill="#0b0b0b" text-anchor="middle">② 정상 이용자 거부율 (상황 2, 대여 기간 안 시도)</text>
+<text transform="translate(22 253.0) rotate(-90)" font-size="13" fill="#0b0b0b" text-anchor="middle">① 취소 뒤 평균 허용 수 (상황 1)</text>
+<line x1="119.28571428571428" y1="56" x2="119.28571428571428" y2="450" stroke="#52514e" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="124.28571428571428" y="442" font-size="12" fill="#52514e">기준 5% (00 §7)</text>
+<polygon points="80.0,236.6 87.0,243.6 80.0,250.6 73.0,243.6" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"><title>D-현실(무제한, M=0): 거부율 0.0%, 취소 뒤 평균 3.14회 (최대 20)</title></polygon>
+<polygon points="80.0,236.6 87.0,243.6 80.0,250.6 73.0,243.6" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"><title>D-현실(20회, M=0): 거부율 0.0%, 취소 뒤 평균 3.14회 (최대 20)</title></polygon>
+<polygon points="135.7,304.6 142.7,311.6 135.7,318.6 128.7,311.6" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"><title>D-현실(24시간, M=0): 거부율 7.1%, 취소 뒤 평균 2.11회 (최대 12)</title></polygon>
+<text x="145.7" y="315.6" font-size="12" fill="#0b0b0b" text-anchor="start">D-현실(24시간)</text>
+<polygon points="240.9,274.1 247.9,281.1 240.9,288.1 233.9,281.1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"><title>D-현실(10회, M=0): 거부율 20.5%, 취소 뒤 평균 2.57회 (최대 10)</title></polygon>
+<text x="250.9" y="285.1" font-size="12" fill="#0b0b0b" text-anchor="start">D-현실(10회)</text>
+<polygon points="383.1,346.8 390.1,353.8 383.1,360.8 376.1,353.8" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"><title>D-현실(12시간, M=0): 거부율 38.6%, 취소 뒤 평균 1.46회 (최대 6)</title></polygon>
+<text x="373.1" y="357.8" font-size="12" fill="#0b0b0b" text-anchor="end">D-현실(12시간)</text>
+<circle cx="80.0" cy="81.8" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>A: 거부율 0.0%, 취소 뒤 평균 5.61회 (최대 20)</title></circle>
+<text x="90.0" y="85.8" font-size="12" fill="#0b0b0b" text-anchor="start">A</text>
+<circle cx="80.0" cy="243.6" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>B: 거부율 0.0%, 취소 뒤 평균 3.14회 (최대 20)</title></circle>
+<text x="90.0" y="247.6" font-size="12" fill="#0b0b0b" text-anchor="start">B = D-현실(무제한·20회)</text>
+<circle cx="562.6" cy="335.1" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>C(N=2): 거부율 61.4%, 취소 뒤 평균 1.75회 (최대 2)</title></circle>
+<text x="572.6" y="339.1" font-size="12" fill="#0b0b0b" text-anchor="start">C(N=2)</text>
+<circle cx="457.4" cy="267.1" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>C(N=4): 거부율 48.0%, 취소 뒤 평균 2.79회 (최대 4)</title></circle>
+<text x="465.4" y="257.1" font-size="12" fill="#0b0b0b" text-anchor="start">C(N=4)</text>
+<circle cx="302.7" cy="180.3" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>C(N=8): 거부율 28.3%, 취소 뒤 평균 4.11회 (최대 8)</title></circle>
+<text x="312.7" y="184.3" font-size="12" fill="#0b0b0b" text-anchor="start">C(N=8)</text>
+<circle cx="129.5" cy="91.2" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>C(N=16): 거부율 6.3%, 취소 뒤 평균 5.46회 (최대 16)</title></circle>
+<text x="137.5" y="83.2" font-size="12" fill="#0b0b0b" text-anchor="start">C(N=16)</text>
+<circle cx="457.4" cy="339.8" r="6" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"><title>D(N=4): 거부율 48.0%, 취소 뒤 평균 1.68회 (최대 4)</title></circle>
+<text x="467.4" y="355.8" font-size="12" fill="#0b0b0b" text-anchor="start">D(N=4)</text>
+<circle cx="654" cy="64" r="6" fill="#2a78d6"/>
+<text x="666" y="68" font-size="12" fill="#0b0b0b">A·B·C·D</text>
+<text x="666" y="82" font-size="12" fill="#52514e">(core.py, PC 모의)</text>
+<polygon points="654,97 661,104 654,111 647,104" fill="#eb6834"/>
+<text x="666" y="108" font-size="12" fill="#0b0b0b">D-현실, 유예 M=0</text>
+<text x="666" y="122" font-size="12" fill="#52514e">(Python 모의)</text>
+</svg>
