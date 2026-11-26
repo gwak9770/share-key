@@ -130,7 +130,7 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
 | `.github/pull_request_template.md`, `.gitignore` | 기존 PR 양식, 비밀정보·빌드 결과·개인 설정 등의 제외 규칙 |
 
-통합 디지털키 펌웨어에는 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. [독립 모터 시험 프로젝트](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)의 소스·IOC·IDE 설정은 예제 폴더에 보관합니다. Python 코드는 `sharekey/`에 있지만 공유 폴더의 `sharekey/stm32/` 판단 사본은 넣지 않았습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
+통합 디지털키 펌웨어에는 완전한 CubeIDE 프로젝트의 `.ioc`·`.cproject`가 없습니다. [독립 모터·RTC 시험 프로젝트](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)의 소스·IOC·IDE 설정은 예제 폴더에 보관합니다. Python 코드는 `sharekey/`에 있지만 공유 폴더의 `sharekey/stm32/` 판단 사본은 넣지 않았습니다. 과거 문서의 외부 PC 경로·ZIP 이름은 이 저장소에 파일이 있다는 뜻이 아닙니다.
 
 ### 11/19 하드웨어 제작·독립 모터 시험
 
@@ -142,6 +142,12 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 - 설치 CubeIDE 2.3.0, ETH·USB 활성화, FLASH 2048K는 팀 표준과 다릅니다. 원본 보존을 위해 통합 기준·Core는 고치지 않았습니다. 이번 재조립의 서보·문·시험 정지 스위치·OLED·RTC 연결 및 디지털키 통합 검증도 남았습니다.
 
 자료: [작업 일지](docs/history/2026-11-19_motor_bench/work_log.md), [시험 결과·절차](docs/history/2026-11-19_motor_bench/test_results.md), [트러블슈팅](docs/history/2026-11-19_motor_bench/troubleshooting.md), [배선](docs/history/2026-11-19_motor_bench/wiring.md), [저항 CSV](docs/history/2026-11-19_motor_bench/resistance.csv), [전압 CSV](docs/history/2026-11-19_motor_bench/voltage.csv), [포트폴리오 요약](docs/history/2026-11-19_motor_bench/portfolio.md).
+
+### 11/26 모터 구동 개선·RTC 독립 시험
+
+시험판 `motor-rtc-bench-20261126-v2`에서 eneloop AA 4개와 PWM 60%로 모터 4개 동시 무부하 구동 3회 중 3회에 성공했습니다. 시험용 차체 1·2층을 조립하고 DS3231의 주소 응답·초 증가를 확인했습니다. 부팅 시 발진기 정지 플래그(OSF)를 지우지 않는 판으로 STM32 USB 전원을 30초 차단한 뒤 초 증가와 OSF 0을 확인했습니다. 실물 결과는 곽동규의 보고입니다.
+
+원본 시험 프로젝트와 IOC를 반입했고 ARM 명령줄에서 29개 단위의 컴파일·링크를 확인했습니다. 부하 주행, 전압·전류 재측정, 차단 전후 RTC 실제 시각 비교, 디지털키 연동은 남았습니다. 곽동규의 해당 보드는 독립 시험판을 실행 중이라고 보고됐습니다. [11/26 작업 일지·후속 계획·포트폴리오 근거](docs/history/2026-11-26_motor_rtc_bench/work_log.md) · [시험판 및 빌드 근거](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)
 
 ## 4. 구성과 개발 환경
 
@@ -174,11 +180,11 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | 부품 | 상태 | 쓰는 곳 | 도착 전 대체 |
 |---|---|---|---|
 | 4WD 주행로봇 프레임 세트 | **도착 (11/19), 조립함 (11/19)** (10/27 디바이스마트 주문) | 차체 위판 교체 | 기존 4WD 아래판 |
-| Cytron MDD3A 모터 드라이버 | **도착 (11/19)**. 독립 시험판에서 모터 하나씩·좌우 2개 동작 보고, **4개 동시 구동은 불안정**(전압 4.2V, 원인 미확정). 통합 펌웨어 연결은 미수행 ([11/19 하드웨어 제작·독립 모터 시험](#1119-하드웨어-제작독립-모터-시험)) | 바퀴 구동(시동 시연) | 통합 전까지 판단만, 모터 끔(VC_ENABLE_MOTORS 0) |
+| Cytron MDD3A 모터 드라이버 | **11/26 독립 시험에서 4개 동시 무부하 구동 3/3**(eneloop 4개·PWM 60%, 사용자 보고). 통합 펌웨어 연결은 미수행 | 바퀴 구동(시동 시연) | 통합 전까지 판단만, 모터 끔(VC_ENABLE_MOTORS 0) |
 | Grove Micro Switch | **취소 확정 (11/18)** | — | 문 스위치는 키트 택트 스위치로 확정(PF12–GND, VC_DOOR_ACTIVE_LOW 1) |
 | Grove → 암 점퍼 케이블 | **취소 확정 (11/19)** | Grove 스위치용이라 불필요 | — |
 | 4×AA 배터리 홀더(커버형), AA 건전지 4개 | **취소 확정 (11/19)**, 지금 쓰는 4구 홀더·건전지 사용 | 서보·모터 6V | 지금 쓰는 4구 홀더 |
-| DS3231 RTC (키트) | 보유, 미연결. 김채희 보관(11/17 확인). 칩 DS3231SN이 붙은 'DS3231 For Pi' 소형 모듈(5핀 소켓, I2C 주소 0x68), 뒷면 12mm급 동전 전지(CR1220 추정, 규격·잔량 미확인). 핀 인쇄·전압 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
+| DS3231 RTC (5핀 Pi용) | **11/26 독립 시험에서 연결·초 증가·USB 30초 차단 후 OSF 0 확인**(사용자 보고). 백업 전지 규격·잔량, 시각 정확도 및 통합은 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
 | SG90 서보, 택트 스위치, LED (키트) | 보유, 사용 중 | 문 잠금·입력·표시 | — |
 | OLED 2.42" SSD1309 | 보유, 사용 중 | 상태 표시 | — |
 | 끝점 스위치 | 미주문 | 잠금 위치 확인 PF13/PF14 | 시간 추정(LOCK EST) |

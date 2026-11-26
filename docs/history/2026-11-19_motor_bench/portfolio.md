@@ -40,4 +40,4 @@
 
 면접 설명 예시: “채널별 구동이 가능한 상태에서 4개 동시 구동만 불안정해 입력 전압을 조건별로 비교했습니다. 1.3V 강하를 관측해 공급 경로 문제를 가설로 좁혔으며, 원인을 확정하기 위한 전류·순간 전압 계측과 개선 후 반복 시험을 후속 과제로 남겼습니다.”
 
-근거: [작업 일지](work_log.md), [시험 결과](test_results.md), [트러블슈팅·공식 사양 출처](troubleshooting.md), [저항 CSV](resistance.csv), [전압 CSV](voltage.csv), [실제 펌웨어 반입](../../../firmware/stm32/examples/mdd3a_motor_test_f429/README.md). 실물 사진·영상은 제공되지 않아 등록하지 않았다.
+근거: [작업 일지](work_log.md), [시험 결과](test_results.md), [트러블슈팅·공식 사양 출처](troubleshooting.md), [저항 CSV](resistance.csv), [전압 CSV](voltage.csv), [11/19 실제 펌웨어 반입](https://github.com/gwak9770/share-key/tree/960eacbc184e1f6fb2e6c15453a6a5846f1e3780/firmware/stm32/examples/mdd3a_motor_test_f429). 실물 사진·영상은 제공되지 않아 등록하지 않았다.
