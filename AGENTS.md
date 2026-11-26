@@ -50,7 +50,7 @@
   ```
   → 실행한 검사는 모두 `PASS`, `FAIL` 0인지 확인한다. OLED 5개는 전체 19개와 중복이며, 결과 폴더는 summary 덮어쓰기를 피하려고 나눈다. Windows MSVC 개발자 터미널에서는 `python`과 `--cc cl`을 사용한다.
 - 보드 빌드·업로드·실물 시험은 호스트 시험과 별도다. 했으면 보드·설정·횟수를 적고, 안 했으면 "미수행"이라고 쓴다.
-- Python 코드를 고치면 `sharekey/`에서 `python3 demo.py`와 `python3 demo.py --relay`를 돌려 A 6/6·C 4/6·01·02·03·05 결과표를 확인한다(Windows는 `PYTHONUTF8=1` 또는 `python -X utf8`). Python↔C 일치(`demo.py --relay-c`)는 `firmware/stm32/Core`를 쓰는 PC 하네스가 생긴 뒤부터 돌린다.
+- Python 코드를 고치면 `sharekey/`에서 `python3 demo.py`와 `python3 demo.py --relay`를 돌려 A 6/6·C 4/6·01·02·03·05 결과표를 확인한다(Windows는 `PYTHONUTF8=1` 또는 `python -X utf8`). 판단 코드를 고치면 Python↔C 일치도 `python3 demo.py --relay-c`로 확인한다(`firmware/stm32/Core`를 `sharekey/build/stm32_pc`로 자동 빌드, macOS·Linux).
 - 결과는 PR 본문 "5. 시험 결과"에 그대로 붙인다. 통과 못 하면 통과 못 했다고 쓴다. 문서만 바꾸면 링크·명령·근거·diff 검토를 우선하고 불필요한 펌웨어 시험을 요구하지 않는다.
 
 ## 6. Git 작업 방식
