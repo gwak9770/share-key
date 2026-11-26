@@ -264,7 +264,7 @@ PC 반복과 별개로, **장치가 매번 제대로 동작하는지**를 실물
 | # | 산출물 | 위치 | 완료 기준 | 담당 |
 |---|---|---|---|---|
 | 1 | 모듈 펌웨어 | `firmware/stm32`, 태그 `final-1207` | 호스트 FAIL 0, 보드 빌드 경고 기록, 실물 시험 기록 | 곽동규·김채희 |
-| 2 | 서버·앱·Pi 중계·웹 | `sharekey/`, 같은 태그 | `demo.py --relay-c` 결과 일치 | 권기백 |
+| 2 | 서버·앱·Pi 중계·웹 | `sharekey/`, 같은 태그 | `demo.py --relay-c` 결과 일치 — 11/26 PC 일치(A 6/6·C 4/6, `sharekey/stm32_pc.c`) | 권기백 |
 | 3 | 비교 실험 프로그램과 결과 | `sharekey/experiments/`, `docs/results/` | §5 출력 3개 | 권기백 |
 | 4 | 상황별 추천표 | `docs/results/recommend.md` | §7 | 권기백 |
 | 5 | 실물 시험 기록 | `docs/test-records/` | §6 표의 각 시험 | 김채희·조민선 |
