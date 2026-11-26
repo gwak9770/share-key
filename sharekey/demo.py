@@ -1,10 +1,11 @@
 """중간발표 시연 자동 실행: A 방식과 C 방식을 같은 시나리오로 돌려 비교.
 실행: python3 demo.py          (가짜 차량)
       python3 demo.py --relay  (Pi 중계 + STM32 흉내)
-      python3 demo.py --relay-c (Pi 중계 + STM32 C 코드, 먼저 stm32 폴더에서 make)
+      python3 demo.py --relay-c (Pi 중계 + STM32 C 판단 코드 PC 실행판, firmware/stm32/Core 를 build/stm32_pc 로 자동 빌드)
              (server.py, vehicle_sim.py 를 자동으로 띄우고 종료함)"""
 import subprocess, sys, time, os, glob
 import app
+import stm32_pc_build
 
 SYNC = 1.0
 SCENARIO_TRIES = 6
@@ -19,7 +20,7 @@ def run(mode):
     time.sleep(0.5)
     if RELAY:      # 앱 → Pi 중계 → STM32 흉내 경로 (--relay-c 면 STM32 C 코드의 PC 빌드)
         if RELAY_C:
-            stm = subprocess.Popen(["./stm32/stm32_pc", mode, "9200", str(int(SYNC * 1000))])
+            stm = subprocess.Popen([stm32_pc_build.EXE, mode, "9200", str(int(SYNC * 1000))])
         else:
             stm = subprocess.Popen([sys.executable, "stm32_sim.py", "--mode", mode, "--sync", str(SYNC)])
         time.sleep(0.5)
@@ -56,6 +57,8 @@ def run(mode):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    if RELAY_C:
+        stm32_pc_build.build()
     res = {m: run(m) for m in "AC"}
     print("\n================ 결과 비교 ================")
     print(f"{'요청':<12}{'A 방식':<16}{'C 방식(N=4)':<16}")
