@@ -5,7 +5,7 @@
 
 ## 1. 확보한 실제 시험 코드
 
-[Src/main.c](../../../firmware/stm32/examples/mdd3a_motor_test_f429/Src/main.c)와 IOC를 원본에서 그대로 복사했다. 시험판 ID·파일별 원본 해시는 [IMPORT_MANIFEST.json](../../../firmware/stm32/examples/mdd3a_motor_test_f429/IMPORT_MANIFEST.json)에 있다.
+[11/19 Src/main.c](https://github.com/gwak9770/share-key/blob/960eacbc184e1f6fb2e6c15453a6a5846f1e3780/firmware/stm32/examples/mdd3a_motor_test_f429/Src/main.c)와 IOC를 원본에서 그대로 복사했다. 시험판 ID·파일별 원본 해시는 [IMPORT_MANIFEST.json](../../../firmware/stm32/examples/mdd3a_motor_test_f429/IMPORT_MANIFEST.json)에 있다.
 
 | 검토 항목 | 실제 소스 확인 |
 |---|---|
@@ -39,7 +39,7 @@
 
 - 원본 파일 105개를 사본과 SHA-256 비교: 반입 시 모두 일치.
 - GNU Tools for STM32 14.3.rel1, GCC 14.3.1로 원본 firmware 소스 27개 단위(26 C + 1 startup assembly)를 컴파일·링크: PASS, 경고 출력 없음(1회).
-- 새 [build.py](../../../firmware/stm32/examples/mdd3a_motor_test_f429/build.py)는 CLI 재빌드용 도구다. 오늘 실물 시험에 사용한 펌웨어 로직이 아니다.
+- 새 [11/19 build.py](https://github.com/gwak9770/share-key/blob/960eacbc184e1f6fb2e6c15453a6a5846f1e3780/firmware/stm32/examples/mdd3a_motor_test_f429/build.py)는 CLI 재빌드용 도구다. 오늘 실물 시험에 사용한 펌웨어 로직이 아니다.
 - 재빌드 ELF SHA-256: `5d3d2eac56f219373455df86f32524617dc4370f269473c3d18cac74ae5e862d`. 로컬 산출물만 생성하며 Git 반입 안 함. 빌드 시각·명령은 무시되는 `build-motor/build_result.json`에 기록.
 - CubeIDE GUI 재빌드, CubeIDE 1.19.0 호환 빌드, 업로드·실물 재시험: 미수행.
 - 기존 디지털키 Core를 수정하지 않았으므로 기존 판단 코드·OLED 호스트 시험은 이번에 재실행하지 않음.

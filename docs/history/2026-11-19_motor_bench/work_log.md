@@ -17,7 +17,7 @@
 | 조립 | F429ZI, MDD3A, TT 모터 4개·4WD 차체, AA 알카라인 4개·4구 홀더, 소형 빵판, 10kΩ 풀다운 4개 | 사용자 실물 작업 보고. 1층 부품 최종 고정 완료 여부 미확인 |
 | 도구 준비 | CubeIDE·CubeMX·CubeProgrammer 설치, 기존 디지털키 전체 플래시 백업 | 사용자 보고. 백업 BIN은 탐색·반입·게시하지 않음 |
 | 실제 파일 확인 | `C:/STM32/MDD3A_Motor_Test`에 Src/Inc/Drivers/Startup, IOC, IDE 설정, 링커 파일 존재 | AI 파일 확인 |
-| 반입 | [독립 예제](../../../firmware/stm32/examples/mdd3a_motor_test_f429/README.md)에 원본 파일 105개 복사 | [원본 SHA-256 목록](../../../firmware/stm32/examples/mdd3a_motor_test_f429/IMPORT_MANIFEST.json). 원본 수정·삭제 없음 |
+| 반입 | [11/19 독립 예제](https://github.com/gwak9770/share-key/tree/960eacbc184e1f6fb2e6c15453a6a5846f1e3780/firmware/stm32/examples/mdd3a_motor_test_f429)에 원본 파일 105개 복사 | [원본 SHA-256 목록](../../../firmware/stm32/examples/mdd3a_motor_test_f429/IMPORT_MANIFEST.json). 원본 수정·삭제 없음 |
 | 코드 준비 지원 | AI 도움으로 코드·시험 절차 준비 | 사용자 보고. 개별 코드 줄의 작성 주체·이전 대화 전문은 미확인 |
 | 실물 수행 | 조립, 출력선 교환, 저항·전압 측정, 버튼 조작 및 구동 관찰 | 사용자 직접 수행 보고 |
 | 이번 AI 검증 | 원본·사본 해시 비교, 실제 코드와 보고 교차 검토, GNU 도구로 ARM 빌드 | [검증 결과](test_results.md). CubeIDE GUI 재빌드·보드 업로드·실물 재시험 미수행 |

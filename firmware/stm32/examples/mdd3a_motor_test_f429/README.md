@@ -1,27 +1,28 @@
-# MDD3A 독립 모터 시험판 — NUCLEO-F429ZI
+# MDD3A 독립 모터·RTC 시험판 — NUCLEO-F429ZI
 
-판 ID: `motor-bench-20261119-v1` · 작업일 2026-11-19 · 사용자 제공 프로젝트 원본: `C:/STM32/MDD3A_Motor_Test`.
-반입 기반: `e957bd95c443cfdab6124c0df2d69fdaf05c664e` · 시험 코드의 원본 Git Commit·작성·업로드 시각: 미상.
+판 ID `motor-rtc-bench-20261126-v2` · 작업일 2026-11-26 · 원본 `C:/STM32/MDD3A_Motor_Test`.
+반입 기반 `0e2f80c`(00 v0.3.25) · 원본 Git 커밋·작성·시험·업로드 시각 미상.
 
 ## 용도와 출처
 
-이 폴더는 실제 사용했다고 보고된 별도 프로젝트의 현재 파일을 그대로 반입한 것이다. 팀 디지털키 `Core/`와 판단 코드를 공유하거나 복제하지 않는다. 인증·키·문·서보·HB 인터록 없이 USER 버튼으로 모터만 시험하므로 실제 차량·통합 디지털키 펌웨어로 사용하지 않는다.
+사용자가 실물 시험에 사용했다고 보고한 독립 프로젝트를 반입했다. USER 버튼으로 모터 출력을 시험하고 부팅 시 RTC를 읽는다. 인증·키·문·서보·Pi 생존 신호(HB) 보호 기능이 필요한 통합 디지털키 펌웨어는 별도 `Core/`에 있다.
 
-[IMPORT_MANIFEST.json](IMPORT_MANIFEST.json)에 원본 파일 105개의 바이트 SHA-256, 반입 시각, 기존 Debug ELF의 해시만 기록했다. 원본·사본 바이트 일치를 확인했다. ELF·BIN·백업·Debug·워크스페이스·launch·.settings는 복사하지 않았다. 현재 파일의 존재·기존 ELF 해시만으로 실제 업로드판을 확정하지 않는다. M2 전용 과거 시험판은 확보하지 못했다.
+[11/26 반입 목록](IMPORT_MANIFEST_20261126.json)에 원본 110개 파일의 SHA-256, 줄바꿈을 LF로 통일한 SHA-256, 반입 시각, 원본 Debug ELF 해시를 기록했다. 내용이 바뀌었거나 추가된 11개 파일은 원본 바이트 그대로 복사했다. 110개 전체에서 줄바꿈을 통일한 원본·사본 해시가 일치했다. ELF·BIN·백업·Debug·워크스페이스·launch·.settings는 반입 대상에서 제외했다.
 
-원본의 `Src/`, `Inc/`, `Startup/`, `Drivers/` 구조를 유지했다. 버전·날짜는 본 문서와 매니페스트로 관리하며 원본 소스에 주석을 추가하지 않았다. `.project`, `.cproject`, `.mxproject`, `.ioc`, FLASH/RAM 링커는 사용자 명시 요청에 따라 보존한다. 원본 드라이버 라이선스와 저작권 헤더도 유지했다.
+원본의 `Src/`, `Inc/`, `Startup/`, `Drivers/` 구조와 `.project`, `.cproject`, `.mxproject`, IOC, FLASH/RAM 링커, 드라이버 라이선스를 보존했다. 판 ID와 날짜는 반입 목록·본 문서·명령줄 빌드 보고에 기록한다. 이전 `motor-bench-20261119-v1`은 원래 Git 트리와 반입 목록에서 확인할 수 있다. [11/19 소스 트리](https://github.com/gwak9770/share-key/tree/960eacbc184e1f6fb2e6c15453a6a5846f1e3780/firmware/stm32/examples/mdd3a_motor_test_f429) · [11/19 반입 목록](IMPORT_MANIFEST.json)
 
 ## 실제 코드와 설정
 
 - PE9/11/13/14 출력, 초기 LOW, PC13 USER 입력(HIGH=누름).
 - M1(PE9)→M2(PE13)→둘 동시, 반대 입력 PE11/PE14는 LOW.
-- HAL 틱 기준 약 100Hz·40% 소프트웨어 PWM. 누름 해제 또는 약 500ms 후 LOW, 다시 놓았다 눌러야 다음 단계.
+- HAL 틱 기준 약 100Hz·60% 소프트웨어 펄스 폭 변조(PWM). `elapsed % 10U < 6U`를 1ms마다 확인한다. 11/19 값은 `< 4U`였다. 최종 원본 주석의 40% 표기와 실행 조건의 60%가 다르다. 원본 주석도 함께 보존했다. 누름 해제 또는 약 500ms 후 LOW, 다시 놓았다 눌러야 다음 단계.
 - 30ms 버튼 안정화 대기. 조기 해제해도 다음 단계로 넘어간다. 파형·정확한 시간은 미계측.
+- I²C1 PB8(SCL)/PB9(SDA), 표준 모드 100kHz, 7비트, 오픈드레인(AF4), 내부 풀업·풀다운 없음. DS3231 주소 `0x68 << 1`로 초·상태 레지스터를 읽는다. 최종판에는 주소 응답 전용 호출과 OSF(발진기 정지 플래그) 초기화 쓰기가 없고, LED로 최종 읽기·시간 증가·OSF 결과를 표시한다.
 - IOC: CubeMX 6.19.0, STM32Cube FW_F4 V1.28.3. HAL 소스 버전 V1.8.5.
-- 원본 설치 제품 정보: CubeIDE 2.3.0. 팀 표준 1.19.0·2.x 금지와 차이가 있다.
+- 확보한 환경에 CubeIDE 2.3.0이 설치되어 있다. 팀 표준은 1.19.0이며 2.x를 금지한다. 1.19.0 호환 빌드는 미수행이다.
 - HSE bypass 8MHz, PLLM=4/N=168/P=2/Q=7, 목표 SYSCLK 168MHz.
-- ETH·USART3·USB_OTG_FS 초기화가 남아 있다. 모터 시험에 필요한 최소 구성이라고 주장하지 않는다.
-- FLASH 링커 길이는 2048K로 팀 저장 영역용 1792K와 다르다. 이 링커·프로젝트 설정을 통합 디지털키에 복사하지 않는다. 통합 저장 데이터 보존·복귀 절차는 별도 확인이 필요하다.
+- 이 예제에는 ETH·USART3·USB_OTG_FS 초기화도 포함된다. 독립 시험판의 모터 제어는 GPIO 소프트웨어 PWM이며, 00 §8의 통합 모터 출력은 TIM1 10kHz다. RTC 핀 위치는 00 §8과 일치한다.
+- 시험판 FLASH 링커는 2048K이며 통합판은 저장 영역을 위해 1792K를 사용한다. 통합 보드에 다시 적용할 때 저장 데이터 보존·복원 및 플래시 지우기 범위를 확인한다.
 
 ## 재빌드
 
@@ -37,14 +38,19 @@ Python 3와 Arm GNU C 컴파일러가 필요하다. 저장소 루트에서:
 python firmware/stm32/examples/mdd3a_motor_test_f429/build.py --cc "<실제 arm-none-eabi-gcc.exe 경로>"
 ```
 
-`build.py`는 이번 기록 작업에서 새로 만든 빌드 도구다. 원본의 C 26개와 startup assembly 1개를 `Debug`의 Cortex-M4/FPU hard ABI, DEBUG/USE_HAL_DRIVER/STM32F429xx, O0·nano/nosys 설정으로 재빌드한다. IDE의 디버그 부가 옵션·디버그 경로까지 동일한 비트 재현 빌드는 아니다. 원본 Debug makefile의 소스 목록과 일치한다.
+`build.py`는 11/19에 추가한 명령줄 빌드 도구다. C 28개와 시작 어셈블리 1개를 Cortex-M4, 하드웨어 부동소수점 호출 규약, DEBUG/USE_HAL_DRIVER/STM32F429xx, O0, nano/nosys 설정으로 재빌드한다. 컴파일 대상 29개를 원본 `Debug/objects.list`와 대조했다. 명령줄 도구는 원본 Debug의 추가 플래그와 링크 순서를 재현하지 않는다.
 
 산출물은 기존 `.gitignore`의 `build-*` 규칙으로 제외되는 `build-motor/`에만 만든다. 원본 프로젝트를 수정하지 않으며 업로드·자동 지우기를 하지 않는다. 실행 명령·도구 버전·실제 빌드 시각·ELF 해시는 `build-motor/build_result.json`에 남긴다.
 
-이번 검사: GNU Tools for STM32 14.3.rel1 / GCC 14.3.1, 27개 단위 컴파일·링크 PASS(1회), 경고 출력 없음. 원본 프로젝트의 GUI 빌드 성공을 대신 증명하지 않는다. 통합판 호스트 시험·보드 업로드·실물 재시험은 미수행이다.
+| 재빌드 확인(2026-11-27, Asia/Seoul) | 결과 |
+|---|---|
+| `build.py`, GNU Tools for STM32 14.3.rel1 / GCC 14.3.1 | 29개 단위 컴파일·링크 PASS(1회), 경고 출력 없음. ELF SHA-256 `56572d47a2e25bd9e3bfe09c089947464800c77f8dfa11d27698703e5114082d`. |
+| 원본 Debug의 컴파일 플래그와 `objects.list` 순서로 별도 명령줄 재빌드 | 29개 단위 컴파일·링크 PASS(1회). 원본 ELF와 재빌드 ELF의 세 로드 세그먼트 주소·크기·내용이 일치했다. ELF 전체 SHA-256은 서로 다르다. 재빌드 SHA-256 `da6c34cfda4bcb4b00d92a37822f4b0a1244380a1858711d2375a22b765c3476`. |
+
+별도 검사에는 원본 Debug의 C 옵션 `-fstack-usage -fcyclomatic-complexity -ftls-model=local-exec`와 시작 어셈블리 옵션 `-x assembler-with-cpp`를 적용했다. 원본 목록 순서인 HAL → Src → Startup으로 링크한 뒤 ELF의 `PT_LOAD` 항목에서 주소·크기·파일에 기록된 바이트를 비교했다.
+
+11/26 CubeIDE 재생성·빌드·업로드는 사용자 보고다. 기록 작업에서 CubeIDE 그래픽 화면 빌드, 보드 재업로드·읽기, 실물 재시험은 미수행이다. 원본 ELF와 로드 데이터가 일치해도 실제 보드 적용 여부는 업로드 로그 또는 보드 대조가 필요하다.
 
 ## 실물 결과와 배선
 
-[작업 일지](../../../../docs/history/2026-11-19_motor_bench/work_log.md), [결과·재시험](../../../../docs/history/2026-11-19_motor_bench/test_results.md), [배선](../../../../docs/history/2026-11-19_motor_bench/wiring.md), [트러블슈팅](../../../../docs/history/2026-11-19_motor_bench/troubleshooting.md).
-
-채널별 2개 구동은 사용자 성공 보고(횟수 미상), 4개 동시 구동은 불안정·미완료다. 모터·전원 정격과 업로드판 식별, 전원 개선 후 재시험이 남았다.
+11/26 eneloop 4개·60%에서 4개 동시 무부하 구동 3/3과 USB 30초 차단 후 OSF 0을 사용자 보고로 확인했다. 조건별 비교, 배선, RTC 시험 단계, 한계와 후속 작업은 일지에 기록했다. [11/26 작업 일지](../../../../docs/history/2026-11-26_motor_rtc_bench/work_log.md) · [11/19 작업 일지](../../../../docs/history/2026-11-19_motor_bench/work_log.md)

@@ -48,6 +48,8 @@ ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptor
 
 ETH_HandleTypeDef heth;
 
+I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -62,6 +64,7 @@ static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -103,7 +106,108 @@ int main(void)
   MX_ETH_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+
+  // RTC 시험용 LED 초기화
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  GPIO_InitTypeDef rtc_led = {0};
+  rtc_led.Pin = GPIO_PIN_0 | GPIO_PIN_14;
+  rtc_led.Mode = GPIO_MODE_OUTPUT_PP;
+  rtc_led.Pull = GPIO_NOPULL;
+  rtc_led.Speed = GPIO_SPEED_FREQ_LOW;
+
+  HAL_GPIO_Init(GPIOB, &rtc_led);
+
+  HAL_GPIO_WritePin(GPIOB,
+      GPIO_PIN_0 | GPIO_PIN_14,
+      GPIO_PIN_RESET);
+
+  HAL_Delay(200);
+
+  uint8_t rtc_first = 0;
+  uint8_t rtc_second = 0;
+
+  HAL_StatusTypeDef status1;
+  HAL_StatusTypeDef status2;
+
+  // 첫 번째 초 데이터 읽기
+  status1 = HAL_I2C_Mem_Read(
+      &hi2c1,
+      (0x68 << 1),
+      0x00,
+      I2C_MEMADD_SIZE_8BIT,
+      &rtc_first,
+      1,
+      100
+  );
+
+  // 2초 대기
+  HAL_Delay(2000);
+
+  // 두 번째 초 데이터 읽기
+  status2 = HAL_I2C_Mem_Read(
+      &hi2c1,
+      (0x68 << 1),
+      0x00,
+      I2C_MEMADD_SIZE_8BIT,
+      &rtc_second,
+      1,
+      100
+  );
+
+  // BCD 데이터를 십진수로 변환
+  uint8_t sec1 =
+      ((rtc_first >> 4) & 0x07) * 10
+      + (rtc_first & 0x0F);
+
+  uint8_t sec2 =
+      ((rtc_second >> 4) & 0x07) * 10
+      + (rtc_second & 0x0F);
+
+  uint8_t diff = (sec2 + 60 - sec1) % 60;
+
+  uint8_t rtc_flags = 0;
+
+  HAL_StatusTypeDef flag_status;
+
+  flag_status = HAL_I2C_Mem_Read(
+      &hi2c1,
+      (0x68 << 1),
+      0x0F,
+      I2C_MEMADD_SIZE_8BIT,
+      &rtc_flags,
+      1,
+      100
+  );
+
+  // OSF 비트 확인
+  uint8_t rtc_osf = (rtc_flags & 0x80) != 0;
+
+  // 읽기 성공 및 시간 증가 확인
+  if (status1 == HAL_OK &&
+      status2 == HAL_OK &&
+	  flag_status == HAL_OK &&
+      sec1 < 60 &&
+      sec2 < 60 &&
+      diff >= 1 &&
+      diff <= 3)
+  {
+      HAL_GPIO_WritePin(GPIOB,
+          GPIO_PIN_0, GPIO_PIN_SET);
+
+      if (rtc_osf)
+          {
+              HAL_GPIO_WritePin(GPIOB,
+                  GPIO_PIN_14, GPIO_PIN_SET);
+          }
+  }
+  else
+  {
+      HAL_GPIO_WritePin(GPIOB,
+          GPIO_PIN_14, GPIO_PIN_SET);
+  }
 
   /* USER CODE END 2 */
 
@@ -189,7 +293,7 @@ int main(void)
 	          HAL_GPIO_WritePin(
 	              GPIOE,
 	              active_pins,
-	              (elapsed % 10U < 4U)
+	              (elapsed % 10U < 6U)
 	                  ? GPIO_PIN_SET
 	                  : GPIO_PIN_RESET
 	          );
@@ -301,6 +405,54 @@ static void MX_ETH_Init(void)
   /* USER CODE BEGIN ETH_Init 2 */
 
   /* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
