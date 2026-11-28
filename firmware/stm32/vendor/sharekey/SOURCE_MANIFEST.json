@@ -15,7 +15,7 @@
   },
   {
     "file": "Core/Inc/sharekey.h",
-    "sha256": "c22c5f5c8c4648f39b5c95b39f56890fd1753a4b48477d7c4b7d18cd2e556cd8",
+    "sha256": "78ca30694ec53366cbc59a81c1a52615a80fb6529936d766890c03a5902d7513",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.h",
     "modified": true,
     "base_sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
