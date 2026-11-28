@@ -42,6 +42,7 @@ def main():
         ("app_c_modeselect", ["-DAPP_POLICY_MODE='C'", "-DVC_DEMO_MODE_SELECT=1"], common + ["tests/test_app.c"]),
         ("app_a_modeselect", ["-DAPP_POLICY_MODE='A'", "-DVC_DEMO_MODE_SELECT=1"], common + ["tests/test_app.c"]),
         ("app_a_relock_off", ["-DAPP_POLICY_MODE='A'", "-DVC_RELOCK_ON_DOOR_CLOSE=0"], common + ["tests/test_app.c"]),
+        ("app_c_test_build", ["-DAPP_POLICY_MODE='C'", "-DTEST_BUILD=1"], common + ["tests/test_app.c"]),
         ("oled_large_c", ["-DSTM32F429xx", "-DAPP_POLICY_MODE='C'"], oled),
         ("oled_large_a", ["-DSTM32F429xx", "-DAPP_POLICY_MODE='A'"], oled),
         ("oled_large_endpoints", ["-DSTM32F429xx", "-DCONTROL_USE_ENDPOINTS=1"], oled),

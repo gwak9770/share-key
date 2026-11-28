@@ -834,6 +834,48 @@ static void test_live_key_display(void) {
     puts("PASS live OLED state: refill, revoke, replay/tamper rejected, multi-key, refill clears 05, return; wire/core unchanged");
 }
 
+static void test_servo_calibration_command(void) {
+#if TEST_BUILD && VC_ENABLE_SERVO
+    reset_app();
+    feed_line("TEST SERVO 1500");                 /* bench heartbeat required */
+    assert(has_log("TEST RESULT=LINK_STALE") && applied.servo_us == 0);
+    heartbeat();
+    feed_line("TEST SERVO 1500");
+    assert(has_log("TEST SERVO_US=1500") && applied.servo_us == 1500);
+    advance(50); heartbeat();
+    assert(applied.servo_us == 1500);             /* held across control ticks */
+    feed_line("TEST STATUS");
+    assert(applied.servo_us == 1500);             /* STATUS keeps calibration */
+    feed_line("TEST SERVO 400");
+    assert(has_log("TEST RESULT=RANGE") && applied.servo_us == 1500);
+    feed_line("TEST SERVO 15x0");
+    assert(applied.servo_us == 1500);
+    feed_line("TEST SERVO 2500");
+    assert(has_log("TEST SERVO_US=2500") && applied.servo_us == 2500);
+    feed_line("TEST SERVO 0");
+    assert(applied.servo_us == vehicle_app_controller()->output.servo_us);
+    feed_line("TEST SERVO 1800");
+    assert(applied.servo_us == 1800);
+    feed_line("TEST UNLOCK");                     /* a real actuation ends calibration */
+    complete_servo(false);
+    assert(applied.servo_us == SERVO_UNLOCK_US);
+    heartbeat();
+    feed_line("TEST SERVO 1800");
+    assert(applied.servo_us == 1800);
+    feed_line("TEST STOP");                       /* other commands end calibration */
+    assert(applied.servo_us == vehicle_app_controller()->output.servo_us);
+    heartbeat();
+    feed_line("TEST SERVO 1600");
+    assert(applied.servo_us == 1600);
+    io_fault = true;
+    feed_line("00|HB");
+    assert(vehicle_app_controller()->fault == FAULT_IO && applied.servo_us == 0);
+    feed_line("TEST SERVO 1600");
+    assert(has_log("TEST RESULT=FAULT") && applied.servo_us == 0);
+    puts("PASS TEST SERVO: heartbeat required, 0/500..2500 only, held, STATUS keeps, other command/fault clears");
+#endif
+}
+
 int main(void) {
     test_live_key_display();
     test_door_state_log();
@@ -850,6 +892,7 @@ int main(void) {
     test_relock_faults_and_stop();
     test_relock_physical_cycles_keep_policy();
     test_key_registration_display();
+    test_servo_calibration_command();
 #if VC_DEMO_MODE_SELECT
     test_demo_mode_select();
     test_mode_select_drops_buffered_rx();
