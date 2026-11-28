@@ -3,7 +3,10 @@ import os
 import time
 import threading
 from common import *
-from storage import encode_state, decode_state
+from storage import encode_state, decode_state, decode_clock
+
+CLOCK_TOLERANCE_S = 300   # 시계 되돌림 허용 오차 (00 §6 13)
+CLOCK_SAVE_STEP_S = 600   # B·D에서 시계 하한을 주기적으로 저장하는 간격 (하루 최대 144회 쓰기)
 
 
 class VehicleCore:
@@ -28,16 +31,43 @@ class VehicleCore:
             raise ValueError("잘못된 재인증 시간")
         self.engine_running = self.engine_warning = self.stopped = self.stop_tracking = False
         self.engine_kid, self.last_auth, self.stop_started = 0, 0, 0
+        self.clock_floor = self.clock_seen = 0
+        self.clock_alarm = False
         if storage is not None:
             image = storage.load()
             try:
                 if image is None:
                     raise ValueError("복원 불가")
                 self.ver, self.keys = decode_state(image)
+                self.clock_floor = self.clock_seen = decode_clock(image)
             except ValueError:
                 self.keys, self.ver = {}, 0
                 self.recovery_required = True
                 self.log("STORAGE RECOVERY REQUIRED")
+
+    def _clock_ok(self):
+        """B·D 기간 판단용 RTC 시각. 본 적 있는 가장 늦은 시각(clock_seen)보다 허용 오차 이상 뒤면
+        되돌림으로 보고 None. clock_seen은 저장할 때마다 플래시에 함께 쓴다(00 §6 13)."""
+        t = time.time()
+        if int(t) + CLOCK_TOLERANCE_S < self.clock_seen:
+            if not self.clock_alarm:
+                self.clock_alarm = True
+                self.log("CLOCK ROLLBACK: period keys denied (04)")
+            return None
+        self.clock_alarm = False
+        self.clock_seen = max(self.clock_seen, int(t))
+        return t
+
+    def _clock_tick(self):
+        """B·D: 허가된 명령이 없어도 CLOCK_SAVE_STEP_S마다 하한을 저장한다."""
+        if not self.use_exp or self.recovery_required or self.storage is None:
+            return
+        if self._clock_ok() is not None and self.clock_seen >= self.clock_floor + CLOCK_SAVE_STEP_S:
+            self._persist()
+
+    def _expired(self, exp):
+        t = self._clock_ok()
+        return t is None or t > exp
 
     def _now(self):
         return int(round(self.clock() * 1000)) & 0xFFFFFFFF
@@ -92,6 +122,7 @@ class VehicleCore:
     def poll(self):
         with self.lock:
             self._drive_poll()
+            self._clock_tick()
 
     def _drive_status(self):
         elapsed = (self._now() - self.last_auth) & 0xFFFFFFFF if self.engine_running else 0
@@ -101,7 +132,8 @@ class VehicleCore:
                 f"{elapsed // 1000:08X}", f"{(left + 999) // 1000:08X}"]
 
     def _persist(self):
-        if self.storage is None or self.storage.save(encode_state(self.ver, self.keys)):
+        if self.storage is None or self.storage.save(encode_state(self.ver, self.keys, self.clock_seen)):
+            self.clock_floor = self.clock_seen
             return True
         self.recovery_required = True
         self.recovery_nonce = None
@@ -143,7 +175,7 @@ class VehicleCore:
             return reject("03" if k["state"] == 1 else "09")
         if k["state"] == 3 and cmd in (2, 4):
             return reject("07")
-        if self.use_exp and time.time() > k["exp"]:
+        if self.use_exp and self._expired(k["exp"]):
             return reject("04")
         if cmd == 3:
             k["state"] = 2
@@ -199,12 +231,13 @@ class VehicleCore:
         except (ValueError, OverflowError):
             return ["RFAIL", "FF"]
         self.recovery_nonce = None
-        if self.use_exp and time.time() > exp:
+        if self.use_exp and self._expired(exp):
             return ["RFAIL", "04"]
         self.keys = {kid: dict(exp=exp, limit=limit, remaining=limit, sit=sit, perm=perm, state=0)}
         self.ver = ver
-        if not self.storage.recover(encode_state(ver, self.keys)):
+        if not self.storage.recover(encode_state(ver, self.keys, self.clock_seen)):
             return ["RFAIL", "0A"]
+        self.clock_floor = self.clock_seen
         self.recovery_required = False
         self.nonces.clear()
         self.sync_nonce = None
@@ -262,6 +295,7 @@ class VehicleCore:
     def make_syncreq(self):
         with self.lock:
             self._drive_poll()
+            self._clock_tick()
             if self.recovery_required:
                 return None
             if self.sync_waiting:

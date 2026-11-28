@@ -1,11 +1,11 @@
 [
   {
     "file": "Core/Src/sharekey.c",
-    "sha256": "cf6d0b0af39238987f5740158e34786016afb93752474a4eae577dbd579c48f4",
+    "sha256": "c2892a0cb7a43ad34176eea12a30509e775065a1a1d28292b2181445f7927480",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.c",
     "modified": true,
     "base_sha256": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
-    "change": "20261118-driving-reauth-1: owner-bound 04/05, durable reauth hold, local stopped cutoff; offline/flash/recovery retained"
+    "change": "20261128-clock-floor-1: RTC rollback floor for B/D expiry (00 §6 13); 20261118 driving reauth, offline/flash/recovery retained"
   },
   {
     "file": "Core/Src/sk_crypto.c",
@@ -15,11 +15,11 @@
   },
   {
     "file": "Core/Inc/sharekey.h",
-    "sha256": "9b9587c991f4dab89d2d8b26dc0486c41192ffcd9dae82c2a3de46df7b7f0a5b",
+    "sha256": "bfa37735d81fe4df936d96aec8a2e4f3e5f32c37eaa3a64f7f22d01ee345f514",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.h",
     "modified": true,
     "base_sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
-    "change": "20261118-driving-reauth-1: owner-bound 04/05, durable reauth hold, local stopped cutoff; offline/flash/recovery retained"
+    "change": "20261128-clock-floor-1: RTC rollback floor for B/D expiry (00 §6 13); 20261118 driving reauth, offline/flash/recovery retained"
   },
   {
     "file": "Core/Inc/sk_crypto.h",
@@ -31,7 +31,8 @@
     "file": "Core/Inc/sk_store.h",
     "origin": "repository/feat/flash-recovery",
     "modified": true,
-    "sha256": "d8733baac6c0b3b83cac82f260451a07218b25356a143e0894664dc5635e35cf"
+    "sha256": "8d2e5e79f4d4c0a44d3dc035f422af3f812191218c568dcf3b8978207b953dbf",
+    "change": "20261128: image 136 bytes (clock floor at offset 132)"
   },
   {
     "file": "Core/Src/sk_store.c",

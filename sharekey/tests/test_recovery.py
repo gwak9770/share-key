@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 import json
 import shutil
@@ -34,6 +35,8 @@ if DLL:
     DLL.bridge_advance.restype = ctypes.c_char_p
     DLL.bridge_clock.argtypes = [ctypes.c_uint32]
     DLL.bridge_reauth_config.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32]
+    DLL.bridge_mode.argtypes = [ctypes.c_char]
+    DLL.bridge_unix.argtypes = [ctypes.c_uint32]
 
 
 class Native:
@@ -102,6 +105,8 @@ class Native:
 
 
 class PythonVehicle:
+    mode = "C"
+
     def __init__(self, image=None):
         self.flash = MemoryFlash(SECTOR)
         if image is not None:
@@ -112,7 +117,8 @@ class PythonVehicle:
         self.boot()
 
     def boot(self):
-        self.core = VehicleCore(log=self.logs.append, storage=FlashJournal(self.flash), clock=lambda: self.ms / 1000)
+        self.core = VehicleCore(mode=self.mode, log=self.logs.append, storage=FlashJournal(self.flash),
+                                clock=lambda: self.ms / 1000)
         self.core.actuate = lambda *args: setattr(self, "actions", self.actions + 1)
 
     def send(self, fields):
@@ -885,6 +891,89 @@ class WebReauthTests(unittest.TestCase):
                     if proc.poll() is None:
                         proc.terminate()
                     proc.wait(timeout=5)
+
+
+class ClockRollbackTests(unittest.TestCase):
+    """S7 시계 되돌림 (00 §6 13). B 방식, 같은 시나리오를 Python과 C(브리지)에 넣는다."""
+    T0 = 1_800_000_000
+    E = T0 + 3600
+
+    def python_vehicle(self):
+        clock = types.SimpleNamespace(unix=self.T0)
+        fake = types.SimpleNamespace(time=lambda: clock.unix, monotonic=time.monotonic)
+        p = patch("core.time", fake)
+        p.start()
+        self.addCleanup(p.stop)
+        v = PythonVehicle()
+        v.mode = "B"
+        v.boot()
+        v.set_unix = lambda t: setattr(clock, "unix", t)
+        return v
+
+    def native_vehicle(self):
+        v = Native()
+        DLL.bridge_mode(b"B")
+        v.set_unix = DLL.bridge_unix
+        v.set_unix(self.T0)
+        return v
+
+    def scenario(self, v):
+        out = []
+        self.assertEqual(recover(v)[0], "RECOVERED")
+        tag = hx(key_tag(9, self.E, 4, 2, 3))
+        self.assertEqual(v.send(["KEY", "00000009", f"{self.E:08X}", "04", "02", "03", tag])[0], "KEYOK")
+        def step(t, label):
+            v.set_unix(t)
+            r = use(v, 9)
+            out.append((label, r[2], r[3]))
+        step(self.T0, "정상")
+        step(self.T0 - 86400, "부팅 중 하루 되돌림")
+        step(self.T0 + 200, "오차 안(+200초)")
+        step(self.E + 60, "만료 뒤")
+        step(self.E - 600, "만료 뒤 부팅 중 되돌림")
+        v.set_unix(self.E + 60)
+        v.advance(1000)                         # 주기 저장(10분 간격) — 만료 뒤 시각을 플래시에 남김
+        v.boot()
+        step(self.T0 + 200, "재부팅 뒤 마지막 허용 시각으로 되돌림")
+        step(self.E + 120, "재부팅 뒤 실제 시각")
+        return out
+
+    def expected(self):
+        return [("정상", "A", "00"), ("부팅 중 하루 되돌림", "D", "04"), ("오차 안(+200초)", "A", "00"),
+                ("만료 뒤", "D", "04"), ("만료 뒤 부팅 중 되돌림", "D", "04"),
+                ("재부팅 뒤 마지막 허용 시각으로 되돌림", "D", "04"), ("재부팅 뒤 실제 시각", "D", "04")]
+
+    def test_python_rollback_denied_and_floor_survives_reboot(self):
+        v = self.python_vehicle()
+        self.assertEqual(self.scenario(v), self.expected())
+        self.assertIn("CLOCK ROLLBACK: period keys denied (04)", v.logs)
+
+    @unittest.skipUnless(DLL, "C bridge 필요")
+    def test_c_matches_python_and_same_flash_bytes(self):
+        n = self.native_vehicle()
+        self.assertEqual(self.scenario(n), self.expected())
+        p = self.python_vehicle()
+        self.scenario(p)
+        self.assertEqual(n.raw(), p.raw())
+
+    def test_old_format_record_has_no_floor(self):
+        from storage import decode_clock, encode_state, IMAGE_SIZE
+        image = bytearray(encode_state(1, {}, 123))
+        self.assertEqual((IMAGE_SIZE, decode_clock(image)), (136, 123))
+        image[132:136] = b"\xff" * 4             # 11/28 이전 기록: 132바이트 뒤가 지워진 FF
+        self.assertEqual(decode_clock(image), 0)
+
+    def test_without_defense_rollback_would_reopen(self):
+        """대조군: 하한이 없으면(새 차량, 저장 없음) 되돌린 시각에서는 허용된다 = 방어가 하는 일."""
+        v = self.python_vehicle()
+        self.assertEqual(recover(v)[0], "RECOVERED")
+        tag = hx(key_tag(9, self.E, 4, 2, 3))
+        v.send(["KEY", "00000009", f"{self.E:08X}", "04", "02", "03", tag])
+        v.set_unix(self.E + 60)
+        self.assertEqual(use(v, 9)[2:4], ["D", "04"])
+        v.core.clock_seen = 0                   # 방어를 끈 것과 같음
+        v.set_unix(self.E - 600)
+        self.assertEqual(use(v, 9)[2:4], ["A", "00"])
 
 
 if __name__ == "__main__":

@@ -15,7 +15,8 @@ static uint8_t media[2][SECTOR];
 static char reply[600];
 static int budget=-1, actions, reads_fail;
 static unsigned offline_logs;
-static uint32_t now_ms, rng=1;
+static uint32_t now_ms, rng=1, unix_now=100u;
+static char boot_mode='C';
 static int step(void) { if (budget==0) return 0; if (budget>0) --budget; return 1; }
 static int rd(void *c,unsigned b,uint32_t o,uint8_t *p,size_t n) {
     (void)c;
@@ -46,7 +47,7 @@ static const sk_store_io_t io={NULL,SECTOR,rd,wr,er};
 void sk_port_send_line(const char *s) { assert(strlen(s)<sizeof reply); strcpy(reply,s); }
 void sk_port_log(const char *s) { if (!strcmp(s,"no server response -> OFFLINE")) ++offline_logs; }
 uint32_t sk_port_millis(void) { return now_ms; }
-uint32_t sk_port_unix_time(void) { return 100u; }
+uint32_t sk_port_unix_time(void) { return unix_now; }
 void sk_port_random(uint8_t *p,size_t n) {
     while (n--) { rng=rng*1664525u+1013904223u; *p++=(uint8_t)(rng>>24); }
 }
@@ -62,9 +63,10 @@ void sk_port_actuate(int cmd,int remaining) {
     ++actions;
 }
 void sk_port_deny(int cmd,const char *why) { (void)cmd; (void)why; }
-API void bridge_boot(void) { sk_use_storage(&io); sk_init('C'); reply[0]=0; }
+API void bridge_boot(void) { sk_use_storage(&io); sk_init(boot_mode); reply[0]=0; }
 API void bridge_reset(void) {
-    memset(media,255,sizeof media); budget=-1; reads_fail=actions=0; offline_logs=0; now_ms=0; bridge_boot();
+    memset(media,255,sizeof media); budget=-1; reads_fail=actions=0; offline_logs=0; now_ms=0;
+    unix_now=100u; boot_mode='C'; bridge_boot();
 }
 API const char *bridge_send(const char *s) {
     char line[600]; assert(strlen(s)<sizeof line); strcpy(line,s); reply[0]=0;
@@ -83,6 +85,8 @@ API const char *bridge_advance(uint32_t delta) { reply[0]=0; now_ms+=delta; sk_p
 API void bridge_clock(uint32_t value) { now_ms=value; }
 API int bridge_reauth_config(uint32_t period,uint32_t grace,uint32_t cutoff) { return sk_configure_reauth(period,grace,cutoff); }
 API void bridge_stopped(int stopped) { sk_set_stopped(stopped); }
+API void bridge_mode(char mode) { boot_mode=mode; bridge_boot(); }
+API void bridge_unix(uint32_t value) { unix_now=value; }
 
 #ifndef SK_BRIDGE_LIBRARY
 static void hex(const uint8_t *p,size_t n,char *s) {

@@ -1,5 +1,5 @@
 #include "sharekey.h"
-/* Policy version: 20261118-driving-reauth-1; keep sharekey.h in sync. */
+/* Policy version: 20261128-clock-floor-1; keep sharekey.h in sync. */
 #include "config.h"
 #include "sk_crypto.h"
 #include <string.h>
@@ -37,6 +37,8 @@ static const sk_store_io_t *storage_io;
 static sk_store_t storage;
 static int recovery_required, recovery_pending;
 static uint8_t recovery_nonce[16];
+static uint32_t clock_floor, clock_seen; /* 시계 되돌림 대응: 플래시에 쓴 하한, 본 적 있는 가장 늦은 RTC 시각 (00 §6 13) */
+static int clock_alarm;
 static int engine_running, engine_warning, vehicle_stopped, stop_tracking, response_authenticated;
 static uint32_t engine_kid, last_auth, stop_started, reauth_period, reauth_grace, stop_cutoff;
 static void drive_poll(void);
@@ -61,6 +63,7 @@ static void pack_state(uint8_t image[SK_STORE_IMAGE_SIZE]) {
         p[8]=k->limit; p[9]=k->remaining; p[10]=k->sit; p[11]=k->perm;
         p[12]=k->state; p[13]=1;
     }
+    put_u32(image+132,clock_seen);
 }
 static int unpack_state(const uint8_t *image) {
     memset(keys,0,sizeof keys); ver=get_u32(image);
@@ -73,17 +76,39 @@ static int unpack_state(const uint8_t *image) {
         k->limit=p[8]; k->remaining=p[9]; k->sit=p[10]; k->perm=p[11]; k->state=p[12];
         for (unsigned j=0;j<i;++j) if (keys[j].used && keys[j].kid==k->kid) return 0;
     }
+    clock_floor=get_u32(image+132);
+    if (clock_floor==0xFFFFFFFFu) clock_floor=0;   /* 11/28 이전 형식 기록: 하한 없음 */
+    clock_seen=clock_floor;
     return 1;
 }
 static int persist(void) {
     uint8_t image[SK_STORE_IMAGE_SIZE];
     if (!storage_io) return 1;
     pack_state(image);
-    if (sk_store_save(&storage,image)) return 1;
+    if (sk_store_save(&storage,image)) { clock_floor=clock_seen; return 1; }
     recovery_required=1; recovery_pending=0;
     if (engine_running && !engine_warning) { engine_warning=1; stop_tracking=0; }
     sk_port_log("STORAGE RECOVERY REQUIRED"); return 0;
 }
+
+/* B·D 기간 판단용 시각. 본 적 있는 가장 늦은 시각보다 허용 오차 이상 뒤면 되돌림으로 보고 0을 돌려준다. */
+static int clock_ok(uint32_t *now) {
+    uint32_t t=sk_port_unix_time();
+    if ((uint64_t)t+SK_CLOCK_TOLERANCE_S < clock_seen) {
+        if (!clock_alarm) { clock_alarm=1; sk_port_log("CLOCK ROLLBACK: period keys denied (04)"); }
+        return 0;
+    }
+    clock_alarm=0;
+    if (t>clock_seen) clock_seen=t;
+    *now=t; return 1;
+}
+/* B·D: 허가된 명령이 없어도 SK_CLOCK_SAVE_STEP_S마다 하한을 저장해 재부팅 뒤 되돌릴 수 있는 폭을 줄인다. */
+static void clock_tick(void) {
+    uint32_t now;
+    if (!use_exp || recovery_required || !storage_io) return;
+    if (clock_ok(&now) && (uint64_t)clock_seen>=(uint64_t)clock_floor+SK_CLOCK_SAVE_STEP_S) (void)persist();
+}
+static int expired(uint32_t exp) { uint32_t now; return !clock_ok(&now) || now>exp; }
 
 static int hexval(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -228,12 +253,13 @@ static void on_recovery(char **f,int nf) {
     sk_recovery_tag(nv,nonce,kid,exp,limit,sit,perm,expect);
     if (!sk_ct_equal(tag,expect,32)) { recovery_fail(f[0],"01"); return; }
     recovery_pending=0;
-    if (use_exp && sk_port_unix_time()>exp) { recovery_fail(f[0],"04"); return; }
+    if (use_exp && expired(exp)) { recovery_fail(f[0],"04"); return; }
     memset(keys,0,sizeof keys); ver=nv;
     keys[0].used=1; keys[0].kid=kid; keys[0].exp=exp; keys[0].limit=limit;
     keys[0].remaining=limit; keys[0].sit=sit; keys[0].perm=perm;
     uint8_t image[SK_STORE_IMAGE_SIZE]; pack_state(image);
     if (!sk_store_recover(&storage,image)) { recovery_fail(f[0],"0A"); return; }
+    clock_floor=clock_seen;
     recovery_required=0; sync_pending=sync_waiting=0; missed_syncs=0; online=-1;
     snprintf(out,sizeof out,"%s|RECOVERED|%08lX",f[0],(unsigned long)kid);
     sk_port_log("STORAGE RECOVERY COMPLETE"); sk_port_send_line(out);
@@ -263,7 +289,7 @@ static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t 
     if (k->state == ST_REVOKED)         return "03";
     if (k->state == ST_RETURNED)        return "09";
     if (k->state==ST_PENDING && (cmd==2 || cmd==4)) return "07";
-    if (use_exp && sk_port_unix_time() > k->exp) return "04";
+    if (use_exp && expired(k->exp)) return "04";
     if (cmd == 3) {                     /* 반납: 차량 내부 즉시 무효화, 횟수 차감 없음 */
         k->state = ST_RETURNED;
         return persist() ? "00" : "0A";
@@ -411,10 +437,11 @@ void sk_init(char mode) {
     ver = 0; sync_pending = 0; online = -1;
     sync_waiting=0; missed_syncs=0;
     recovery_required=0; recovery_pending=0;
+    clock_floor=clock_seen=0; clock_alarm=0;
     if (storage_io) {
         uint8_t image[SK_STORE_IMAGE_SIZE];
         if (!sk_store_open(&storage,storage_io,image) || !unpack_state(image)) {
-            memset(keys,0,sizeof keys); ver=0; recovery_required=1;
+            memset(keys,0,sizeof keys); ver=0; recovery_required=1; clock_floor=clock_seen=0;
             sk_port_log("STORAGE RECOVERY REQUIRED");
         }
     }
@@ -448,6 +475,7 @@ void sk_handle_line(char *line) {
 
 void sk_poll(void) {
     drive_poll();
+    clock_tick();
     if (recovery_required) return;
     uint32_t now = sk_port_millis();
     uint8_t r; char nh[33];

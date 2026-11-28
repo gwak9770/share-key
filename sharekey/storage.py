@@ -5,7 +5,7 @@ import zlib
 from pathlib import Path
 
 RECORD_SIZE = 256
-IMAGE_SIZE = 132
+IMAGE_SIZE = 136  # VER 4 + 키 슬롯 16×8 + 시계 하한 4 (11/28 S7). 옛 132바이트 기록의 뒤 4바이트는 FF
 VID = 0xCAFE
 
 
@@ -117,7 +117,7 @@ class FlashJournal:
                         self.damaged_bank = bank
                     elif seq > best:
                         best = seq
-                        image = rec[16:148]
+                        image = rec[16:16 + IMAGE_SIZE]
                         self.bank = bank
                 if image is not None and self.bank == bank:
                     self.next_offset = end
@@ -144,7 +144,7 @@ class FlashJournal:
         rec[:6] = b"SKJ1" + bytes((1, int(barrier)))
         rec[8:16] = struct.pack(">II", self.sequence, VID)
         if image is not None:
-            rec[16:148] = image
+            rec[16:16 + IMAGE_SIZE] = image
         rec[248:252] = struct.pack(">I", zlib.crc32(rec[:248]))
         self.flash.program(bank, off, rec[:252])
         if self.flash.read(bank, off, RECORD_SIZE) != rec:
@@ -201,7 +201,8 @@ class FlashJournal:
             return False
 
 
-def encode_state(ver, keys):
+def encode_state(ver, keys, clock_floor=0):
+    """clock_floor: 차량이 본 RTC 시각의 하한(유닉스 초, 0 = 없음). 시계 되돌림 대응(00 §6 13)."""
     if len(keys) > 8:
         raise ValueError("최대 8키")
     image = bytearray(IMAGE_SIZE)
@@ -210,6 +211,7 @@ def encode_state(ver, keys):
         image[4 + i * 16:20 + i * 16] = struct.pack(
             ">IIBBBBBB2x", kid, k["exp"], k["limit"], k["remaining"],
             k["sit"], k["perm"], k["state"], 1)
+    image[132:136] = struct.pack(">I", clock_floor)
     return bytes(image)
 
 
@@ -218,7 +220,7 @@ def decode_state(image):
         raise ValueError("상태 길이 불일치")
     ver = int.from_bytes(image[:4], "big")
     keys = {}
-    for off in range(4, IMAGE_SIZE, 16):
+    for off in range(4, 132, 16):
         slot = image[off:off + 16]
         kid, exp, limit, rem, sit, perm, state, used = struct.unpack(">IIBBBBBB2x", slot)
         if used > 1 or slot[14:] != b"\0\0":
@@ -231,3 +233,9 @@ def decode_state(image):
             raise ValueError("잘못된 키 상태")
         keys[kid] = dict(exp=exp, limit=limit, remaining=rem, sit=sit, perm=perm, state=state)
     return ver, keys
+
+
+def decode_clock(image):
+    """저장된 시계 하한. 11/28 이전 형식의 기록은 이 칸이 FF라 0(없음)으로 본다."""
+    v = int.from_bytes(image[132:136], "big")
+    return 0 if v == 0xFFFFFFFF else v
