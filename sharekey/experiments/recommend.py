@@ -75,6 +75,31 @@ def choose(m, limit):
     return top, sorted((v for v in ok if key(v) == top), key=lambda v: (v not in ORDER, ORDER.index(v) if v in ORDER else v))
 
 
+def block_table(out):
+    """상황 1(취소 뒤 재사용)에서 오프라인 중 시도만 세어 막은 비율. 온라인 시도는 서버 취소(A)로도 막힌다."""
+    with open(os.path.join(out, "conditions.csv"), encoding="utf-8", newline="") as f:
+        ids = {c["cond_id"] for c in csv.DictReader(f) if c["situation"] == "1"
+               and not c["kind"].startswith(("B3", "B4"))}
+    by = {}
+    with open(os.path.join(out, "raw.csv"), encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            if r["situation"] == "1" and r["cond_id"] in ids:
+                by.setdefault(r["variant"], {}).setdefault(r["cond_id"], []).append(r)
+    rows = []
+    for v, cs in by.items():
+        off = [r for rs in cs.values() for r in rs if r["online"] == "0"]
+        blk = sum(1 for r in off if r["result"] != "A")
+        zero = sum(1 for rs in cs.values() if all(r["result"] != "A" for r in rs))
+        rows.append((v, blk, len(off), zero, len(cs)))
+    rows.sort(key=lambda x: (x[0] not in ORDER, ORDER.index(x[0]) if x[0] in ORDER else 0, -x[1] / x[2], x[0]))
+    L = ["", "## 오프라인 중 취소된 키 시도를 막은 비율 (상황 1)", "",
+         "상황 1의 시도 중 **차량이 오프라인일 때**의 시도만 센다. 온라인 시도는 서버 취소가 반영돼 모든 방식이 03으로 "
+         "거부하므로 뺐다. \"한 번도 못 쓴 조건\"은 취소 뒤 시도가 모두 거부된 조건 수다(조건 28개, B3·B4 제외).", "",
+         "| 방식 | 막은 비율 (오프라인 시도) | 한 번도 못 쓴 조건 |", "|---|---|---|"]
+    L += [f"| {v} | {100 * b / n:.1f}% ({b}/{n}) | {z}/{t} |" for v, b, n, z, t in rows]
+    return L
+
+
 def fmt(names):
     if len(names) <= 3:
         return " = ".join(names)
@@ -114,6 +139,7 @@ def main():
         for v in sorted(m, key=lambda v: (m[v]["rate"] > 5, m[v]["max"], m[v]["mean"], v)):
             x = m[v]
             detail.append(f"| {v} | {x['max']} | {x['mean']:.2f} | {x['rate']:.1f}% | {'O' if x['rate'] <= 5 else ''} |")
+    L += block_table(a.out)
     L += ["", "## 유형별 전체 순위", "", "5% 통과 방식을 먼저, 그 안에서 ① 최대 → ① 평균 순."] + detail
     with open(os.path.join(a.out, "recommend.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")
