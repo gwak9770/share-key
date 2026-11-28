@@ -1,4 +1,4 @@
-"""motor-rtc-bench-20261126-v2, 2026-11-26: imported firmware CLI build only.
+"""oled-rtc-servo-bench-20261127-v3: build the imported bench firmware.
 
 This helper is newly added tooling, not firmware used in the reported bench test.
 No flash programming or original-project writes are performed.
@@ -48,7 +48,7 @@ def main():
     commands.append(command)
     subprocess.run(command, cwd=root, check=True)
     version = subprocess.check_output([compiler, '--version'], text=True).splitlines()[0]
-    report = {'snapshot_id': 'motor-rtc-bench-20261126-v2', 'built_at': datetime.now().astimezone().isoformat(timespec='seconds'),
+    report = {'snapshot_id': 'oled-rtc-servo-bench-20261127-v3', 'built_at': datetime.now().astimezone().isoformat(timespec='seconds'),
               'compiler': version, 'translation_units': len(sources),
               'elf_sha256': hashlib.sha256(elf.read_bytes()).hexdigest(),
               'result': 'PASS', 'uploaded': False, 'commands': commands}
