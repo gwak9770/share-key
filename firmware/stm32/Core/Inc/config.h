@@ -104,6 +104,13 @@
 #ifndef VC_ENABLE_IWDG
 #define VC_ENABLE_IWDG 0
 #endif
+/* 1128 (권기백): passive buzzer on PA6 (TIM3_CH1, Zio D12), signal + GND.
+ * Sounds only mirror results the policy core already decided (allow, deny,
+ * engine off) and the reauth warning; they never grant or block anything.
+ * Off by default until the board check; a buzzer setup failure only mutes it. */
+#ifndef VC_ENABLE_BUZZER
+#define VC_ENABLE_BUZZER 0
+#endif
 #ifndef VC_DOOR_ACTIVE_LOW
 #define VC_DOOR_ACTIVE_LOW 1
 #endif
@@ -130,6 +137,16 @@
 #define VC_RX_BUDGET 128u
 #define OLED_ADDRESS 0x3Cu
 #define RTC_ADDRESS 0x68u
+/* Buzzer pitches (Hz). Allow high, deny low, engine off falls in three steps,
+ * the reauth warning rises while driving -> stopped -> last third before cutoff. */
+#define BUZZER_ALLOW_HZ 2500u
+#define BUZZER_DENY_HZ 400u
+#define BUZZER_OFF1_HZ 1500u
+#define BUZZER_OFF2_HZ 1000u
+#define BUZZER_OFF3_HZ 600u
+#define BUZZER_WARN_DRIVE_HZ 1000u
+#define BUZZER_WARN_STOP_HZ 2000u
+#define BUZZER_WARN_CUTOFF_HZ 3000u
 
 #if SERVO_TRAVEL_MS >= SERVO_TIMEOUT_MS
 #error "SERVO_TRAVEL_MS must be less than SERVO_TIMEOUT_MS."

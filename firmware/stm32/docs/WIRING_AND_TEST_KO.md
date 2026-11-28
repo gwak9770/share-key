@@ -8,6 +8,7 @@
 |---|---|---|
 | Pi 통신 | PD8 TX / PD9 RX | CN1 ST-LINK USB, USART3 |
 | 서보 신호 | PD14 | D10, CN7 16번, TIM4 CH3 |
+| 수동 부저 (11/28) | PA6 | D12, CN7 12번, TIM3 CH1. 신호 + GND, `VC_ENABLE_BUZZER 1`일 때만 출력 |
 | 모터 M1A / M1B | PE9 / PE11 | D6 / D5, TIM1 CH1 / CH2 |
 | 모터 M2A / M2B | PE13 / PE14 | D3 / D38, TIM1 CH3 / CH4 |
 | 문 닫힘 | PF12 | D8 |
@@ -17,7 +18,7 @@
 | I2C | PB8 / PB9 | D15 SCL / D14 SDA |
 | 허용 / 온라인 / 거부 LED | PB0 / PB7 / PB14 | LD1 / LD2 / LD3 |
 
-서보 신호는 PD14이며 PA6 또는 PC7을 사용하던 구형 후보 핀표와 혼합하지 않는다. 핀·커넥터 대조 근거는 [ST UM1974](https://www.st.com/resource/en/user_manual/dm00244518-stm32-nucleo-144-boards-mb1137-stmicroelectronics.pdf)와 [F429 데이터시트](https://www.st.com/resource/en/datasheet/stm32f429ie.pdf)다.
+서보 신호는 PD14이며 PA6 또는 PC7을 사용하던 구형 후보 핀표와 혼합하지 않는다. 11/28부터 PA6은 수동 부저 전용이다(서보 아님). 부저는 **수동(passive)**이어야 한다. 능동(active) 부저는 한 음만 난다. 작은 압전 부저는 PA6에 바로 연결해도 되지만, 전자기식 부저(코일)는 전류가 커서 트랜지스터를 거친다. 핀·커넥터 대조 근거는 [ST UM1974](https://www.st.com/resource/en/user_manual/dm00244518-stm32-nucleo-144-boards-mb1137-stmicroelectronics.pdf)와 [F429 데이터시트](https://www.st.com/resource/en/datasheet/stm32f429ie.pdf)다.
 
 ## 전원
 

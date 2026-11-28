@@ -26,6 +26,7 @@ void vc_platform_send_line(const char *line);
 void vc_platform_log(const char *line);
 void vc_platform_random(uint8_t *out, size_t n);
 void vc_platform_indicators(bool allow, bool online, bool deny);
+void vc_platform_tone(uint16_t hz);   /* passive buzzer pitch, 0 = silent; no-op when disabled */
 bool vc_platform_return_pressed(void);
 bool vc_platform_mode_button(void);   /* demo mode select (USER button), false if disabled */
 void vc_platform_service(const Controller *c, const VehicleDisplay *display);

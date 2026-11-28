@@ -94,6 +94,7 @@ uint32_t vc_platform_millis(void) { return HAL_GetTick(); }
 Inputs vc_platform_inputs(void) { return board_inputs(); }
 void vc_platform_apply(Outputs out) { board_apply(out); }
 void vc_platform_indicators(bool a, bool o, bool d) { board_leds(a, o, d); }
+void vc_platform_tone(uint16_t hz) { board_tone(hz); }
 bool vc_platform_return_pressed(void) { return board_return_pressed(); }
 bool vc_platform_mode_button(void) { return board_mode_button(); }
 #if VC_ENABLE_RTC

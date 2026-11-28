@@ -58,6 +58,20 @@ void vc_platform_indicators(bool allow, bool online, bool deny) {
     led_deny = deny;
 }
 bool vc_platform_return_pressed(void) { return return_pressed; }
+static uint16_t tone_hz;                      /* last pitch sent to the buzzer */
+static uint16_t tone_seen[16];                /* distinct non-zero pitches heard */
+static size_t tone_seen_count;
+void vc_platform_tone(uint16_t hz) {
+    tone_hz = hz;
+    if (!hz) return;
+    for (size_t i = 0; i < tone_seen_count; ++i) if (tone_seen[i] == hz) return;
+    assert(tone_seen_count < sizeof(tone_seen) / sizeof(tone_seen[0]));
+    tone_seen[tone_seen_count++] = hz;
+}
+static bool tone_heard(uint16_t hz) {
+    for (size_t i = 0; i < tone_seen_count; ++i) if (tone_seen[i] == hz) return true;
+    return false;
+}
 #if VC_ENABLE_RTC
 #include "rtc_time.h"
 static bool stub_rtc_ok;
@@ -162,6 +176,7 @@ static void reset_app_with_door(bool closed) {
     io_fault = return_pressed = false;
     led_allow = led_online = led_deny = false;
     service_count = 0;
+    tone_hz = 0; tone_seen_count = 0;
     rx_read = rx_write = wire_count = log_count = 0;
     next_rid = 1;
     assert(vehicle_app_init());
@@ -532,6 +547,57 @@ static void test_reauth_local_stop_cutoff(void) {
     authenticate(5,'A',"00",3);
 #endif
     assert(vehicle_app_controller()->fault==FAULT_NONE);
+}
+
+/* 1128: passive buzzer mirrors allow / deny / engine off and the reauth warning. */
+static void test_buzzer_sounds(void) {
+    reset_app(); register_key(); heartbeat();
+    assert(tone_hz == 0 && tone_seen_count == 0);          /* silent at boot */
+    authenticate(1, 'A', "00", 3);
+    assert(tone_hz == BUZZER_ALLOW_HZ);
+    advance(120); assert(tone_hz == 0);
+    complete_servo(false);
+
+    char response[160];
+    make_response(1, response, sizeof(response));
+    response[strlen(response) - 1] = response[strlen(response) - 1] == '0' ? '1' : '0';
+    feed_line(response);                                     /* tampered tag -> 01 */
+    assert(tone_hz == BUZZER_DENY_HZ);
+    advance(150); assert(tone_hz == 0);                      /* gap */
+    advance(100); assert(tone_hz == BUZZER_DENY_HZ);
+    advance(150); assert(tone_hz == 0);
+    assert(vehicle_app_controller()->fault == FAULT_NONE);   /* sound never changes control */
+
+    reset_app(); register_key(); heartbeat();
+    assert(vehicle_app_request_lock() == RES_OK);
+    complete_servo(true);
+    assert(sk_configure_reauth(100, 50, VC_STOP_CUTOFF_S * 1000u));
+    authenticate(2, 'A', "00", 3);
+    keepalive_for(1500);
+    assert(vehicle_app_display()->reauth_warning && tone_heard(BUZZER_WARN_DRIVE_HZ));
+    assert(!tone_heard(BUZZER_WARN_STOP_HZ));
+#if VC_DEMO_DRIVE_INPUT
+    local_user_pressed = true; advance(1); advance(DEBOUNCE_MS);
+    assert(vehicle_app_display()->stopped);
+    keepalive_for(1000);
+    assert(tone_heard(BUZZER_WARN_STOP_HZ) && !tone_heard(BUZZER_WARN_CUTOFF_HZ));
+    const uint32_t cutoff = VC_STOP_CUTOFF_S * 1000u;
+    keepalive_for(cutoff - cutoff / 3u);
+    assert(vehicle_app_display()->engine_running && tone_heard(BUZZER_WARN_CUTOFF_HZ));
+    while (vehicle_app_display()->engine_running) { now_ms += 250u; heartbeat(); }
+    assert(has_log("REAUTH STOP CUTOFF") && tone_hz == BUZZER_OFF1_HZ);
+    advance(150); assert(tone_hz == BUZZER_OFF2_HZ);
+    advance(150); assert(tone_hz == BUZZER_OFF3_HZ);
+    advance(250); assert(tone_hz == 0);                      /* engine off: warning ends */
+    authenticate(2, 'D', "07", 3);
+    assert(tone_hz == BUZZER_DENY_HZ);
+#else
+    authenticate(5, 'A', "00", 3);
+    assert(tone_hz == BUZZER_OFF1_HZ);
+#endif
+    assert(tone_seen_count >= 3u);                           /* 기술요건 1: 3가지 이상 주파수 */
+    printf("PASS buzzer: allow/deny/engine-off sounds, reauth warning rises, %u pitches, control unchanged\n",
+           (unsigned)tone_seen_count);
 }
 
 static size_t lock_request_logs(void) {
@@ -922,6 +988,7 @@ int main(void) {
     test_frames_and_test_build_boundary();
     test_motor_failure_does_not_refund();
     test_reauth_local_stop_cutoff();
+    test_buzzer_sounds();
     test_relock_boot_and_unknown();
     test_relock_debounce_and_one_shot();
     test_relock_busy_edge_not_deferred();

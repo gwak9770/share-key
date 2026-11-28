@@ -86,7 +86,8 @@ def main() -> int:
     defines = ["-DSTM32F429xx", "-DUSE_HAL_DRIVER", "-DHSE_VALUE=8000000U"]
     if args.variant == "all-features":
         defines += ["-DCONTROL_USE_ENDPOINTS=1", "-DVC_ENABLE_MOTORS=1", "-DVC_ENABLE_RTC=1",
-                    "-DVC_ENABLE_OLED=1", "-DVC_ENABLE_RETURN_BUTTON=1", "-DVC_ENABLE_IWDG=1", "-DTEST_BUILD=1"]
+                    "-DVC_ENABLE_OLED=1", "-DVC_ENABLE_RETURN_BUTTON=1", "-DVC_ENABLE_IWDG=1", "-DTEST_BUILD=1",
+                    "-DVC_ENABLE_BUZZER=1"]
     elif args.variant == "policy-a":
         defines += ["-DAPP_POLICY_MODE='A'"]
     elif args.variant == "servo":
