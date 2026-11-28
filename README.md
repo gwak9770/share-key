@@ -124,7 +124,7 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증·저장 소스의 출처·Git 원본 SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.26. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.28. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -148,6 +148,12 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 시험판 `motor-rtc-bench-20261126-v2`에서 eneloop AA 4개와 PWM 60%로 모터 4개 동시 무부하 구동 3회 중 3회에 성공했습니다. 시험용 차체 1·2층을 조립하고 DS3231의 주소 응답·초 증가를 확인했습니다. 부팅 시 발진기 정지 플래그(OSF)를 지우지 않는 판으로 STM32 USB 전원을 30초 차단한 뒤 초 증가와 OSF 0을 확인했습니다. 실물 결과는 곽동규의 보고입니다.
 
 원본 시험 프로젝트와 IOC를 반입했고 ARM 명령줄에서 29개 단위의 컴파일·링크를 확인했습니다. 부하 주행, 전압·전류 재측정, 차단 전후 RTC 실제 시각 비교, 디지털키 연동은 남았습니다. 곽동규의 해당 보드는 독립 시험판을 실행 중이라고 보고됐습니다. [11/26 작업 일지·후속 계획·포트폴리오 근거](docs/history/2026-11-26_motor_rtc_bench/work_log.md) · [시험판 및 빌드 근거](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)
+
+### 11/27 OLED·RTC·SG90 독립 시험과 전체 배선
+
+RTC와 2.42인치 SSD1309 OLED를 PB8/PB9 공용 버스에 연결했습니다. 곽동규가 OLED 줄무늬·KEY OK/NG 표시, 단기 전원 차단을 포함한 RTC 경과 41초(스톱워치 41초, 1회), 전원 분리 조건에서 SG90 회전·복귀 2회(1000↔1500µs, 육안 약 30°)를 확인했습니다.
+
+**독립 시험판은 부팅 단계에서 SG90을 자동으로 움직입니다. 문이나 링크를 조립할 때는 서보 전원을 분리하세요.** 최종 배선은 PF12–GND 택트 스위치 1개와 DC모터·서보 공용 AA 전원입니다. 스위치 입력과 공용 전원 구동은 미검증입니다. [11/27 작업 일지와 배선표](docs/history/2026-11-27_oled_rtc_servo_wiring/work_log.md) · [독립 시험판](firmware/stm32/examples/mdd3a_motor_test_f429/README.md)
 
 ## 4. 구성과 개발 환경
 
@@ -175,7 +181,7 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 
 핀·클록·전원은 [CubeIDE 적용 안내](firmware/stm32/docs/INTEGRATE_CUBEIDE_KO.md), [배선·시험 안내](firmware/stm32/docs/WIRING_AND_TEST_KO.md)와 실제 보드를 대조합니다. 오래된 [펌웨어 README](firmware/stm32/README_KO.md)에는 OLED 기본 꺼짐 등 초기 설명이 남아 있으므로 현재 `config.h`와 후속 변경 기록을 함께 확인합니다.
 
-### 부품 상태 (2026-11-26 기준)
+### 부품 상태 (2026-11-27 독립 시험 갱신 포함)
 
 | 부품 | 상태 | 쓰는 곳 | 도착 전 대체 |
 |---|---|---|---|
@@ -184,9 +190,9 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | Grove Micro Switch | **취소 확정 (11/18)** | — | 문 스위치는 키트 택트 스위치로 확정(PF12–GND, VC_DOOR_ACTIVE_LOW 1) |
 | Grove → 암 점퍼 케이블 | **취소 확정 (11/19)** | Grove 스위치용이라 불필요 | — |
 | 4×AA 배터리 홀더(커버형), AA 건전지 4개 | **취소 확정 (11/19)**, 지금 쓰는 4구 홀더·건전지 사용 | 서보·모터 6V | 지금 쓰는 4구 홀더 |
-| DS3231 RTC (5핀 Pi용) | **11/26 독립 시험에서 연결·초 증가·USB 30초 차단 후 OSF 0 확인**(사용자 보고). 백업 전지 규격·잔량, 시각 정확도 및 통합은 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
-| SG90 서보, 택트 스위치, LED (키트) | 보유, 사용 중 | 문 잠금·입력·표시 | — |
-| OLED 2.42" SSD1309 | 보유, 사용 중 | 상태 표시 | — |
+| DS3231 RTC (5핀 Pi용) | 11/27 공용 I²C 검증 및 단기 전원 차단을 포함한 경과 시간 비교 1회(사용자 보고). 백업 전지 규격·잔량, 장기 정밀도, 통합 미확인 | B·D 기간 방식 시계 | PC 시험은 가짜 시계 |
+| SG90 서보, 택트 스위치, LED (키트) | SG90 전원 분리 조건에서 회전·복귀 2회. PF12 택트 스위치 배선 완료, 입력 미검증 | 문 잠금·입력·표시 | — |
+| OLED 2.42" SSD1309 | 11/27 독립 시험에서 문자와 RTC 표시 확인 | 상태 표시 | — |
 | 끝점 스위치 | 미주문 | 잠금 위치 확인 PF13/PF14 | 시간 추정(LOCK EST) |
 
 디바이스마트 주문 중 4WD 프레임 세트·MDD3A는 11/19 도착·조립(MDD3A는 독립 시험만, 통합 미수행). Grove 스위치(11/18)와 케이블·홀더·건전지(11/19)는 취소 확정, 홀더·건전지는 기존 것을 쓴다. 주문 원본은 [04 주문 목록](docs/04_purchase_list.md). 부품이 도착하면 이 표의 상태와 날짜를 PR로 갱신한다.
@@ -375,7 +381,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.26, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.28, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
