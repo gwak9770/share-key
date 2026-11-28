@@ -1,11 +1,11 @@
 [
   {
     "file": "Core/Src/sharekey.c",
-    "sha256": "c2892a0cb7a43ad34176eea12a30509e775065a1a1d28292b2181445f7927480",
+    "sha256": "ce0297755a355afe9b7fd53df7ac4a98ffc224624640b5c45ab459e2b6dda724",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.c",
     "modified": true,
     "base_sha256": "3e203cb55fc7f31ba8665b362ec74bdbad9fc2d9a5bad136da9c41a3f9d92b7b",
-    "change": "20261128-clock-floor-1: RTC rollback floor for B/D expiry (00 §6 13); 20261118 driving reauth, offline/flash/recovery retained"
+    "change": "20261128-rtc-fallback-1: RTC unreadable (time 0) -> B/D period keys 04; clock-fallback key EXP=FFFFFFFF counted only while the RTC is unreadable (00 §6 14); 20261128 clock floor, 20261118 driving reauth, offline/flash/recovery retained"
   },
   {
     "file": "Core/Src/sk_crypto.c",
@@ -15,11 +15,11 @@
   },
   {
     "file": "Core/Inc/sharekey.h",
-    "sha256": "bfa37735d81fe4df936d96aec8a2e4f3e5f32c37eaa3a64f7f22d01ee345f514",
+    "sha256": "c22c5f5c8c4648f39b5c95b39f56890fd1753a4b48477d7c4b7d18cd2e556cd8",
     "origin": "team10_share_1027(1).zip/sharekey/stm32/sharekey.h",
     "modified": true,
     "base_sha256": "87dc86d592ce6a84591c73ac63fc9e87801e1507fce645577b9dacb868ff4410",
-    "change": "20261128-clock-floor-1: RTC rollback floor for B/D expiry (00 §6 13); 20261118 driving reauth, offline/flash/recovery retained"
+    "change": "20261128-rtc-fallback-1: RTC unreadable (time 0) -> B/D period keys 04; clock-fallback key EXP=FFFFFFFF counted only while the RTC is unreadable (00 §6 14); 20261128 clock floor, 20261118 driving reauth, offline/flash/recovery retained"
   },
   {
     "file": "Core/Inc/sk_crypto.h",

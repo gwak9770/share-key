@@ -976,5 +976,141 @@ class ClockRollbackTests(unittest.TestCase):
         self.assertEqual(use(v, 9)[2:4], ["A", "00"])
 
 
+class RtcFallbackTests(unittest.TestCase):
+    """1128 RTC 고장(시각 0): B·D 기간 키는 04, 시계 오류용 1회 키(EXP=FFFFFFFF)는 그때만 횟수로 허용.
+    같은 시나리오를 Python과 C(브리지)에 넣는다 (00 §6 14)."""
+    T0 = 1_800_000_000
+    E = T0 + 3600
+
+    def python_vehicle(self, mode):
+        clock = types.SimpleNamespace(unix=self.T0)
+        fake = types.SimpleNamespace(time=lambda: clock.unix, monotonic=time.monotonic)
+        p = patch("core.time", fake)
+        p.start()
+        self.addCleanup(p.stop)
+        v = PythonVehicle()
+        v.mode = mode
+        v.boot()
+        v.set_unix = lambda t: setattr(clock, "unix", t)
+        return v
+
+    def native_vehicle(self, mode):
+        v = Native()
+        DLL.bridge_mode(mode.encode())
+        v.set_unix = DLL.bridge_unix
+        v.set_unix(self.T0)
+        return v
+
+    def sync_valid(self, v, kids):
+        req = v.sync_request()
+        nonce = bytes.fromhex(req[2])
+        entries = [(k, 0) for k in kids]
+        return v.send(["SYNC", f"{VID:08X}", "00000002", hx(nonce), f"{len(entries):02X}",
+                       enc_entries(entries), hx(sync_tag(2, nonce, entries))])
+
+    def scenario(self, v):
+        out = []
+        self.assertEqual(recover(v)[0], "RECOVERED")
+        for kid, exp, limit in ((9, self.E, 4), (0x70, EXP, 1)):
+            tag = hx(key_tag(kid, exp, limit, 2, 3))
+            self.assertEqual(v.send(["KEY", f"{kid:08X}", f"{exp:08X}", f"{limit:02X}", "02", "03", tag])[0],
+                             "KEYOK")
+        def step(t, kid, label):
+            v.set_unix(t)
+            r = use(v, kid)
+            out.append((label, r[2], r[3], r[4]))
+        step(self.T0, 9, "시계 정상: 기간 키")
+        step(self.T0, 0x70, "시계 정상: 1회 키는 거부")
+        step(0, 9, "RTC 고장: 기간 키 04")
+        step(0, 0x70, "RTC 고장: 1회 키 허용")
+        step(0, 0x70, "RTC 고장: 1회 키 두 번째 05")
+        v.set_unix(0)
+        self.assertEqual(self.sync_valid(v, [9, 0x70])[0], "SYNCACK")
+        step(0, 0x70, "온라인 동기화 뒤 다시 1회")
+        step(self.T0 + 10, 9, "시계 복구: 기간 키 다시 허용")
+        step(self.E + 60, 9, "시계 복구 뒤 만료")
+        return out
+
+    def expected(self, mode):
+        rem9 = ("03", "03") if mode == "D" else ("FF", "FF")   # 거부는 횟수를 줄이지 않음
+        return [("시계 정상: 기간 키", "A", "00", rem9[0]), ("시계 정상: 1회 키는 거부", "D", "04", "01"),
+                ("RTC 고장: 기간 키 04", "D", "04", rem9[1]), ("RTC 고장: 1회 키 허용", "A", "00", "00"),
+                ("RTC 고장: 1회 키 두 번째 05", "D", "05", "00"), ("온라인 동기화 뒤 다시 1회", "A", "00", "00"),
+                ("시계 복구: 기간 키 다시 허용", "A", "00", "03" if mode == "D" else "FF"),
+                ("시계 복구 뒤 만료", "D", "04", "03" if mode == "D" else "FF")]
+
+    def test_python_b_and_d(self):
+        for mode in "BD":
+            with self.subTest(mode=mode):
+                v = self.python_vehicle(mode)
+                self.assertEqual(self.scenario(v), self.expected(mode))
+                self.assertIn("CLOCK INVALID: period keys denied (04)", v.logs)
+
+    def test_python_c_mode_ignores_clock(self):
+        v = self.python_vehicle("C")
+        self.assertEqual(recover(v)[0], "RECOVERED")
+        v.set_unix(0)
+        self.assertEqual(use(v)[2:4], ["A", "00"])
+
+    @unittest.skipUnless(DLL, "C bridge 필요")
+    def test_c_matches_python_and_same_flash_bytes(self):
+        for mode in "BD":
+            with self.subTest(mode=mode):
+                n = self.native_vehicle(mode)
+                self.assertEqual(self.scenario(n), self.expected(mode))
+                p = self.python_vehicle(mode)
+                self.scenario(p)
+                self.assertEqual(n.raw(), p.raw())
+
+
+class ClockKeyServerTests(unittest.TestCase):
+    """1128 서버: 시계 오류용 1회 키 발급 조건과 원래 키 종료 시 연쇄 취소."""
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        server.STATE_FILE = str(Path(self.temp.name) / "server_state.json")
+        server.st = {"ver": 1, "net": 1, "keys": {"00000007":
+                     dict(exp=int(time.time()) + 3600, limit=4, sit=2, perm=3, state=0)}}
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def ask(self, kid=7, new=0x70, proof=None):
+        proof = clock_key_proof(kid, new) if proof is None else proof
+        return server.handle(None, ["CLKISSUE", f"{kid:08X}", f"{new:08X}", hx(proof)])
+
+    def test_issue_fields_and_idempotent(self):
+        r = self.ask()
+        self.assertEqual(r[:6], ["CLKISSUED", "00000070", "FFFFFFFF", "01", "02", "03"])
+        self.assertEqual(r[6], hx(key_tag(0x70, EXP, 1, 2, 3)))
+        self.assertEqual(self.ask(), r)
+        self.assertEqual(server.st["ver"], 2)
+        self.assertEqual(server.st["keys"]["00000007"]["state"], 0)   # 원래 키는 그대로 유효
+
+    def test_rejections(self):
+        self.assertEqual(self.ask(proof=bytes(32)), ["ERR", "01"])
+        self.assertEqual(self.ask(kid=8), ["ERR", "08"])
+        self.ask()
+        self.assertEqual(self.ask(kid=0x70, new=0x71), ["ERR", "06"])  # 1회 키로 또 받기 금지
+        for state, exp, why in ((1, None, "03"), (2, None, "09"), (0, 1, "04")):
+            k = server.st["keys"]["00000007"]
+            k.update(state=state, **({} if exp is None else {"exp": exp}))
+            self.assertEqual(self.ask(new=0x72), ["ERR", why])
+            k.update(state=0, exp=int(time.time()) + 3600)
+
+    def test_one_active_child_and_cascade_revoke(self):
+        self.ask()
+        self.ask(new=0x71)
+        self.assertEqual(server.st["keys"]["00000070"]["state"], 1)
+        self.assertEqual(server.st["keys"]["00000071"]["state"], 0)
+        server.handle(None, ["REVOKE", "00000007"])
+        server.handle(None, ["NET", "1"])             # 다음 요청 때 연쇄 취소
+        self.assertEqual(server.st["keys"]["00000071"]["state"], 1)
+        server.st["keys"]["00000007"].update(state=0)
+        server.st["keys"]["00000072"] = dict(exp=EXP, limit=1, sit=2, perm=3, state=0, parent="00000007")
+        server.st["keys"]["00000007"]["exp"] = 1      # 원래 키 만료 → 연쇄 취소
+        server.handle(None, ["NET", "1"])
+        self.assertEqual(server.st["keys"]["00000072"]["state"], 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

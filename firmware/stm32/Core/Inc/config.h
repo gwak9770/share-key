@@ -23,12 +23,25 @@
 #define VC_ENABLE_FLASH 1
 #endif
 
-/* F429 v2, 2026-10-28. Main demo remains A/C; policy/wire format is unchanged. */
+/* 1128 (김채희): DS3231 RTC feeds B/D period checks (00 §6 13·14). Needed before
+ * the policy check below. RTC holds Korea local time; VC_RTC_UTC_OFFSET_S
+ * converts it to the server's UTC Unix seconds. */
+#ifndef VC_ENABLE_RTC
+#define VC_ENABLE_RTC 0
+#endif
+#ifndef VC_RTC_UTC_OFFSET_S
+#define VC_RTC_UTC_OFFSET_S 32400   /* KST = UTC+9 */
+#endif
+
+/* F429 v2, 2026-10-28. A/C need no clock. B/D need VC_ENABLE_RTC=1 (1128). */
 #ifndef APP_POLICY_MODE
 #define APP_POLICY_MODE 'C'
 #endif
-#if APP_POLICY_MODE != 'A' && APP_POLICY_MODE != 'C'
-#error "This integration release supports A/C only; RTC persistence policy needs separate integration."
+#if APP_POLICY_MODE != 'A' && APP_POLICY_MODE != 'B' && APP_POLICY_MODE != 'C' && APP_POLICY_MODE != 'D'
+#error "APP_POLICY_MODE must be A, B, C or D."
+#endif
+#if (APP_POLICY_MODE == 'B' || APP_POLICY_MODE == 'D') && !VC_ENABLE_RTC
+#error "B/D period policy needs VC_ENABLE_RTC=1 (no trusted clock otherwise)."
 #endif
 /* 1103 (권기백): demo-only boot mode selection with the Nucleo USER button
  * (B1, PC13, high while pressed). Hold USER while pressing RESET -> the next
@@ -40,12 +53,17 @@
  * Flash-enabled builds restore keys/counts after RESET. Only the explicit
  * VC_ENABLE_FLASH=0 demo discards them. Provision distinct keys for comparisons.
  * Default OFF: a real vehicle must not let a physical button pick a weaker
- * policy. Only A/C are accepted until B/D are integrated with the RTC. */
+ * policy. B/D are accepted only when VC_ENABLE_RTC=1 (1128). With RTC the
+ * default list is A -> B -> C -> D; set APP_POLICY_MODE 'A' for an A default. */
 #ifndef VC_DEMO_MODE_SELECT
 #define VC_DEMO_MODE_SELECT 0
 #endif
 #ifndef VC_DEMO_MODES
+#if VC_ENABLE_RTC
+#define VC_DEMO_MODES "ABCD"
+#else
 #define VC_DEMO_MODES "CA"
+#endif
 #endif
 #ifndef VC_MODE_STEP_MS
 #define VC_MODE_STEP_MS 1500u
@@ -72,9 +90,6 @@
 #endif
 #ifndef VC_ENABLE_MOTORS
 #define VC_ENABLE_MOTORS 0
-#endif
-#ifndef VC_ENABLE_RTC
-#define VC_ENABLE_RTC 0
 #endif
 #ifndef VC_ENABLE_OLED
 #define VC_ENABLE_OLED 1

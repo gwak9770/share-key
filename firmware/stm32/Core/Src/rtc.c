@@ -7,13 +7,7 @@
 static unsigned dec(uint8_t b) { return (b>>4)*10u+(b&15u); }
 static bool bcd(uint8_t b) { return (b&15u)<10u && (b>>4)<10u; }
 static uint8_t enc(unsigned n) { return (uint8_t)(((n/10u)<<4)|(n%10u)); }
-bool rtc_valid_date(const RtcTime *t) {
-    static const unsigned days[]={31,28,31,30,31,30,31,31,30,31,30,31};
-    if(t->year<2000||t->year>2099||t->month<1||t->month>12||
-       t->hour>23||t->minute>59||t->second>59) return false;
-    unsigned max=days[t->month-1]+(t->month==2 && t->year%4==0);
-    return t->day>=1 && t->day<=max;
-}
+/* rtc_valid_date() lives in rtc_time.c (1128). */
 bool rtc_read(RtcTime *t) {
     uint8_t r[7],status;
     memset(t,0,sizeof(*t));
@@ -56,7 +50,6 @@ bool rtc_set(const RtcTime *t) {
 
 
 #else
-bool rtc_valid_date(const RtcTime *t) { (void)t; return false; }
 bool rtc_read(RtcTime *t) { memset(t,0,sizeof(*t)); return false; }
 bool rtc_set(const RtcTime *t) { (void)t; return false; }
 #endif

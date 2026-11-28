@@ -1,5 +1,5 @@
 #include "sharekey.h"
-/* Policy version: 20261128-clock-floor-1; keep sharekey.h in sync. */
+/* Policy version: 20261128-rtc-fallback-1; keep sharekey.h in sync. */
 #include "config.h"
 #include "sk_crypto.h"
 #include <string.h>
@@ -38,7 +38,7 @@ static sk_store_t storage;
 static int recovery_required, recovery_pending;
 static uint8_t recovery_nonce[16];
 static uint32_t clock_floor, clock_seen; /* 시계 되돌림 대응: 플래시에 쓴 하한, 본 적 있는 가장 늦은 RTC 시각 (00 §6 13) */
-static int clock_alarm;
+static int clock_alarm, clock_bad;
 static int engine_running, engine_warning, vehicle_stopped, stop_tracking, response_authenticated;
 static uint32_t engine_kid, last_auth, stop_started, reauth_period, reauth_grace, stop_cutoff;
 static void drive_poll(void);
@@ -94,6 +94,11 @@ static int persist(void) {
 /* B·D 기간 판단용 시각. 본 적 있는 가장 늦은 시각보다 허용 오차 이상 뒤면 되돌림으로 보고 0을 돌려준다. */
 static int clock_ok(uint32_t *now) {
     uint32_t t=sk_port_unix_time();
+    if (t==0) {                         /* RTC를 못 읽음(통신·OSF·날짜 이상): 기간을 모르므로 04 (1128) */
+        if (!clock_bad) { clock_bad=1; sk_port_log("CLOCK INVALID: period keys denied (04)"); }
+        return 0;
+    }
+    clock_bad=0;
     if ((uint64_t)t+SK_CLOCK_TOLERANCE_S < clock_seen) {
         if (!clock_alarm) { clock_alarm=1; sk_port_log("CLOCK ROLLBACK: period keys denied (04)"); }
         return 0;
@@ -109,6 +114,9 @@ static void clock_tick(void) {
     if (clock_ok(&now) && (uint64_t)clock_seen>=(uint64_t)clock_floor+SK_CLOCK_SAVE_STEP_S) (void)persist();
 }
 static int expired(uint32_t exp) { uint32_t now; return !clock_ok(&now) || now>exp; }
+/* 시계 오류용 키(EXP=SK_EXP_NONE)는 B·D에서 RTC를 읽을 수 없을 때만 쓰고, C처럼 횟수로 제한한다. */
+static int clock_fallback(const sk_key_t *k) { return use_exp && k->exp==SK_EXP_NONE; }
+static int counted(const sk_key_t *k) { return use_cnt || clock_fallback(k); }
 
 static int hexval(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -147,7 +155,7 @@ static sk_key_t *find(uint32_t kid) {
 int sk_get_key_view(uint32_t kid, sk_key_view_t *view) {
     const sk_key_t *k = find(kid);
     if (!k || !view || recovery_required) return 0;
-    view->remaining = use_cnt ? (int)k->remaining : -1;
+    view->remaining = counted(k) ? (int)k->remaining : -1;
     memcpy(view->blocked_reason, k->state == ST_PENDING ? "07" : k->state == ST_REVOKED ? "03" :
            k->state == ST_RETURNED ? "09" : "00", 3u);
     return 1;
@@ -289,7 +297,9 @@ static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t 
     if (k->state == ST_REVOKED)         return "03";
     if (k->state == ST_RETURNED)        return "09";
     if (k->state==ST_PENDING && (cmd==2 || cmd==4)) return "07";
-    if (use_exp && expired(k->exp)) return "04";
+    if (clock_fallback(k)) {
+        if (sk_port_unix_time()!=0) return "04";   /* 시계가 정상이면 원래 기간 키를 쓴다 */
+    } else if (use_exp && expired(k->exp)) return "04";
     if (cmd == 3) {                     /* 반납: 차량 내부 즉시 무효화, 횟수 차감 없음 */
         k->state = ST_RETURNED;
         return persist() ? "00" : "0A";
@@ -297,7 +307,7 @@ static const char *decide(sk_key_t *k, uint32_t kid, uint8_t cmd, const uint8_t 
     if (!((cmd == 1 && (k->perm & 0x01)) || ((cmd == 2 || cmd==4) && (k->perm & 0x02)))) return "06";
     if (cmd==2 && engine_running) return "07";
     if (cmd==4 && (!VC_REAUTH_ENABLE || !engine_running || engine_kid!=kid)) return "07";
-    if (use_cnt) {
+    if (counted(k)) {
         if (k->remaining == 0) return "05";
         k->remaining--;                 /* 차감 → 플래시 저장 → 실행 */
     }
@@ -316,14 +326,14 @@ static void on_resp(char **f, int nf) {     /* RID|RESP|KID|CMD|NONCE|TAG */
     if (VC_REAUTH_ENABLE && cmd==4 && response_authenticated && engine_running && engine_kid==kid && strcmp(why,"00"))
         if (!drive_warn()) why="0A";
     char rem[3] = "FF";
-    if (k && use_cnt) snprintf(rem, sizeof rem, "%02X", k->remaining);
+    if (k && counted(k)) snprintf(rem, sizeof rem, "%02X", k->remaining);
     int ok = (why[0] == '0' && why[1] == '0');
     if (ok) {
         if (cmd==2) { engine_running=1; engine_warning=stop_tracking=0; engine_kid=kid; last_auth=sk_port_millis(); }
         if (cmd==4) last_auth=sk_port_millis();
         if (cmd==5) sk_local_engine_stop();
         if (cmd==3 && engine_running && engine_kid==kid) (void)drive_warn();
-        if (cmd!=4 && (cmd!=5 || engine_was_running)) sk_port_actuate(cmd, (k && use_cnt && cmd!=3 && cmd!=5) ? k->remaining : -1);
+        if (cmd!=4 && (cmd!=5 || engine_was_running)) sk_port_actuate(cmd, (k && counted(k) && cmd!=3 && cmd!=5) ? k->remaining : -1);
     }
     else {
         snprintf(msgbuf, sizeof msgbuf, "DENY kid=%08lX cmd=%u reason=%s", (unsigned long)kid, cmd, why);
@@ -437,7 +447,7 @@ void sk_init(char mode) {
     ver = 0; sync_pending = 0; online = -1;
     sync_waiting=0; missed_syncs=0;
     recovery_required=0; recovery_pending=0;
-    clock_floor=clock_seen=0; clock_alarm=0;
+    clock_floor=clock_seen=0; clock_alarm=clock_bad=0;
     if (storage_io) {
         uint8_t image[SK_STORE_IMAGE_SIZE];
         if (!sk_store_open(&storage,storage_io,image) || !unpack_state(image)) {
