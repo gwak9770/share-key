@@ -33,9 +33,23 @@ static const char *position_name(void) {
     if (!control_lock_known(&controller)) return "UNKNOWN";
     return control_is_locked(&controller) ? "LOCKED" : "UNLOCKED";
 }
+#if TEST_BUILD
+/* 1128 (김채희): bench-only servo calibration pulse ("TEST SERVO <us>").
+ * 0 = off. Cleared by any other bench command except STATUS, any real
+ * actuation request (auth/relock), STOP, any fault, or init. */
+static uint16_t test_servo_us;
+#endif
+static Outputs current_outputs(void) {
+    Outputs out = controller.output;
+#if TEST_BUILD
+    if (controller.fault != FAULT_NONE) test_servo_us = 0u;
+    if (test_servo_us && !controller.moving) out.servo_us = test_servo_us;
+#endif
+    return out;
+}
 static void update_control(uint32_t now) {
     control_tick(&controller, vc_platform_inputs(), now);
-    vc_platform_apply(controller.output);
+    vc_platform_apply(current_outputs());
     if (controller.fault != reported_fault) {
         reported_fault = controller.fault;
         char msg[96];
@@ -52,10 +66,13 @@ static void update_control(uint32_t now) {
     last_moving = controller.moving;
 }
 static Result request(Action action, int value, uint32_t now) {
+#if TEST_BUILD
+    test_servo_us = 0u;   /* any real actuation (auth, relock, bench) ends calibration */
+#endif
     update_control(now);
     Result result = control_arm(&controller, now);
     if (result == RES_OK) result = control_request(&controller, action, value, now);
-    vc_platform_apply(controller.output);
+    vc_platform_apply(current_outputs());
     last_moving = controller.moving;
     return result;
 }
@@ -162,6 +179,9 @@ bool vehicle_app_init(void) {
     display.policy = '-'; display.remaining = -1; display.actuation = RES_NOT_READY;
     memcpy(display.reason, "--", 3u);
     allow_led = deny_led = server_online = last_moving = false;
+#if TEST_BUILD
+    test_servo_us = 0u;
+#endif
     return_candidate = return_stable = return_released = false;
     return_changed = now; reported_fault = FAULT_NONE;
 #if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
@@ -176,7 +196,7 @@ bool vehicle_app_init(void) {
     drive_candidate=drive_stable=drive_released=drive_stopped=false;
     drive_changed=vc_platform_millis();
 #endif
-    vc_platform_apply(controller.output);
+    vc_platform_apply(current_outputs());
     vc_platform_log("boot F429 vehicle control v2");
     char msg[100];
     snprintf(msg, sizeof(msg), "MODE=%c ENDPOINTS=%u SERVO=%u MOTOR=%u TEST=%u",
@@ -198,6 +218,7 @@ static void test_command(const char *s, uint32_t now) {
                  controller.output.motor, control_fault(controller.fault));
         vc_platform_log(msg); return;
     }
+    if (strncmp(s, "SERVO ", 6)) test_servo_us = 0u;   /* any command except SERVO/STATUS ends calibration */
     if (!strcmp(s, "STOP")) { vehicle_app_stop(); r = RES_OK; }
     else if (!strcmp(s, "CLEAR")) r = vehicle_app_clear_fault();
     else if (!strcmp(s, "LOCK") && VC_ENABLE_SERVO) r = request(ACT_LOCK, 0, now);
@@ -209,6 +230,23 @@ static void test_command(const char *s, uint32_t now) {
         long n = strtol(v, &end, 10);
         if (numeric && !errno && end != v && !*end && n >= -MOTOR_MAX_PERMILLE && n <= MOTOR_MAX_PERMILLE)
             r = request(ACT_MOTOR, (int)n, now);
+    }
+    else if (!strncmp(s, "SERVO ", 6) && VC_ENABLE_SERVO) {
+        char *end = NULL; errno = 0;
+        const char *v = s + 6;
+        long n = (*v >= '0' && *v <= '9') ? strtol(v, &end, 10) : -1;
+        update_control(now);
+        if (n < 0 || errno || !end || end == v || *end || (n != 0 && (n < 500 || n > 2500))) r = RES_RANGE;
+        else if (controller.fault != FAULT_NONE) r = RES_FAULT;
+        else if (!control_link_fresh(&controller, now)) r = RES_LINK_STALE;
+        else if (controller.moving || controller.output.motor || controller.motor_target) r = RES_BUSY;
+        else {
+            test_servo_us = (uint16_t)n;
+            vc_platform_apply(current_outputs());
+            char pulse[48]; snprintf(pulse, sizeof(pulse), "TEST SERVO_US=%u", (unsigned)test_servo_us);
+            vc_platform_log(pulse);
+            r = RES_OK;
+        }
     }
     char msg[80]; snprintf(msg, sizeof(msg), "TEST RESULT=%s", control_result(r));
     vc_platform_log(msg);
@@ -315,9 +353,12 @@ Result vehicle_app_request_lock(void) {
     return request(ACT_LOCK, 0, vc_platform_millis());
 }
 void vehicle_app_stop(void) {
+#if TEST_BUILD
+    test_servo_us = 0u;
+#endif
     sk_local_engine_stop();
     control_stop(&controller, vc_platform_millis());
-    vc_platform_apply(controller.output);
+    vc_platform_apply(current_outputs());
     last_moving = false;
 }
 Result vehicle_app_clear_fault(void) {

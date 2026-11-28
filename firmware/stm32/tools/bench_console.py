@@ -39,7 +39,7 @@ def main():
                 if len(pending) > 4096: pending.clear()
         threads = [threading.Thread(target=heartbeat, daemon=True), threading.Thread(target=receive, daemon=True)]
         for thread in threads: thread.start()
-        print("TEST_BUILD=1 only. STATUS / LOCK / UNLOCK / MOTOR -600..600 / STOP / CLEAR / QUIT")
+        print("TEST_BUILD=1 only. STATUS / LOCK / UNLOCK / SERVO 0|500..2500 / MOTOR -600..600 / STOP / CLEAR / QUIT")
         try:
             while not stop.is_set():
                 command = input("> ").strip().upper()
@@ -47,8 +47,11 @@ def main():
                 valid = command in {"STATUS","LOCK","UNLOCK","STOP","CLEAR"}
                 if re.fullmatch(r"MOTOR -?[0-9]+", command):
                     valid = -600 <= int(command.split()[1]) <= 600
+                if re.fullmatch(r"SERVO [0-9]+", command):
+                    pulse = int(command.split()[1])
+                    valid = pulse == 0 or 500 <= pulse <= 2500
                 if not valid:
-                    print("Unknown command or motor output outside -600..600."); continue
+                    print("Unknown command, motor outside -600..600, or servo outside 0/500..2500."); continue
                 send("TEST "+command)
         except (KeyboardInterrupt, EOFError):
             pass

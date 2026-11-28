@@ -98,8 +98,10 @@
 #define SERVO_TIMEOUT_MS 1500u
 #define SERVO_MIN_SETTLE_MS 100u
 #define SERVO_TRAVEL_MS 500u
-#define SERVO_LOCK_US 2000u
-#define SERVO_UNLOCK_US 1200u
+/* 11/28 (김채희): new SG90 on the 11/27 body. Lock arm touches the door,
+ * unlock swings outward so the door opens. Bench TEST SERVO, 5 cycles, no buzz. */
+#define SERVO_LOCK_US 2100u
+#define SERVO_UNLOCK_US 1000u
 #define SERVO_PWM_HZ 50u
 #define MOTOR_PWM_HZ 10000u
 #define MOTOR_MAX_PERMILLE 600
