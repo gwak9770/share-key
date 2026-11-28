@@ -29,7 +29,7 @@ MDD3A에는 모터 전원과 논리 입력을 구분해 연결한다. MCU 초기
 
 ## 센서 없는 기본 모드
 
-`CONTROL_USE_ENDPOINTS=0`에서는 PF13/PF14를 잠금 확인에 사용하지 않는다. 부팅 위치는 UNKNOWN이고, 1200µs 잠금 명령 또는 1800µs 해제 명령을 500ms 동안 유지한 뒤 위치를 ESTIMATED로 표시한다. 정지·오류로 PWM을 끄면 추정 위치를 무효화한다. 모터는 문 닫힘과 잠금 추정 또는 센서 확인이 필요하다.
+`CONTROL_USE_ENDPOINTS=0`에서는 PF13/PF14를 잠금 확인에 사용하지 않는다. 부팅 위치는 UNKNOWN이고, `SERVO_LOCK_US`(11/28 기준 2100µs) 잠금 명령 또는 `SERVO_UNLOCK_US`(1000µs) 해제 명령을 500ms 동안 유지한 뒤 위치를 ESTIMATED로 표시한다. 정지·오류로 PWM을 끄면 추정 위치를 무효화한다. 모터는 문 닫힘과 잠금 추정 또는 센서 확인이 필요하다.
 
 Grove 문 센서는 모듈마다 출력 극성과 배선이 다를 수 있다. 기본 PF12는 active-low, 내부 pull-up이다. 실제 문 닫힘 신호가 high인 모듈이면 `VC_DOOR_ACTIVE_LOW=0`으로 바꾸며 이때 입력 pull-down을 사용한다. 설정 변경 전 실제 출력 전압이 MCU 입력 조건에 맞는지 확인한다.
 
