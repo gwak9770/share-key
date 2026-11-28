@@ -13,13 +13,15 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "sk_store.h"
-#define SK_POLICY_VERSION "20261118-driving-reauth-1"
+#define SK_POLICY_VERSION "20261128-clock-floor-1"
 #define SK_OFFLINE_MISSES 3u
 
 #define SK_VID              0x0000CAFEu
 #define SK_MAX_KEYS         8
 #define SK_MAX_SYNC_ENTRIES 16
 #define SK_NONCE_LIFE_MS    5000u
+#define SK_CLOCK_TOLERANCE_S 300u   /* 시계 되돌림 허용 오차 (00 §6 13) */
+#define SK_CLOCK_SAVE_STEP_S 600u   /* 시계 하한 주기 저장 간격 (B·D, 하루 최대 144회 쓰기) */
 #define SK_LINE_MAX         512
 
 /* ---- 플랫폼이 구현해야 하는 함수 (port_stm32.c / main_pc.c) ---- */

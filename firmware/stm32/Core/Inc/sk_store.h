@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #define SK_STORE_RECORD_SIZE 256u
-#define SK_STORE_IMAGE_SIZE 132u /* VER + 8 explicitly encoded 16-byte key slots */
+#define SK_STORE_IMAGE_SIZE 136u /* VER + 8 explicitly encoded 16-byte key slots + clock floor (11/28) */
 typedef struct {
     void *context;
     uint32_t sector_size;
