@@ -15,6 +15,17 @@ static uint32_t allow_started, deny_started;
 static bool last_moving, return_candidate, return_stable, return_released;
 static uint32_t return_changed;
 static Fault reported_fault;
+/* 1128 (권기백): passive buzzer (기술요건 1, 3가지 이상 주파수). Mirrors results the
+ * policy core already decided and the reauth warning; it never grants or blocks. */
+typedef struct { uint16_t hz, ms; } Tone;
+static const Tone tone_allow[] = {{BUZZER_ALLOW_HZ, 120u}};
+static const Tone tone_deny[] = {{BUZZER_DENY_HZ, 150u}, {0u, 100u}, {BUZZER_DENY_HZ, 150u}};
+static const Tone tone_off[] = {{BUZZER_OFF1_HZ, 150u}, {BUZZER_OFF2_HZ, 150u}, {BUZZER_OFF3_HZ, 250u}};
+static const Tone *tone_seq;
+static unsigned tone_len, warn_level;
+static uint32_t tone_started, warn_started, stop_seen_at;
+static bool stop_seen;
+static uint16_t tone_out;
 #if VC_DEMO_DRIVE_INPUT
 static bool drive_candidate, drive_stable, drive_released, drive_stopped;
 static uint32_t drive_changed;
@@ -22,6 +33,39 @@ static uint32_t drive_changed;
 #if VC_ENABLE_SERVO && VC_RELOCK_ON_DOOR_CLOSE
 static bool door_observed, previous_door_closed;
 #endif
+
+static void tone_play(const Tone *seq, unsigned len) {
+    tone_seq = seq; tone_len = len; tone_started = vc_platform_millis();
+}
+/* 0 none, 1 reauth failed while driving, 2 stopped, 3 last third before the
+ * default stopped cutoff. Display-side estimate; the cutoff itself is sharekey.c. */
+static unsigned reauth_warning_level(uint32_t now) {
+    if (!display.engine_running || !display.reauth_warning) { stop_seen = false; return 0u; }
+    if (!display.stopped) { stop_seen = false; return 1u; }
+    if (!stop_seen) { stop_seen = true; stop_seen_at = now; }
+    const uint32_t cutoff = VC_STOP_CUTOFF_S * 1000u;
+    return (uint32_t)(now - stop_seen_at) >= cutoff - cutoff / 3u ? 3u : 2u;
+}
+static void update_buzzer(uint32_t now) {
+    static const uint16_t pitch[4] = {0u, BUZZER_WARN_DRIVE_HZ, BUZZER_WARN_STOP_HZ, BUZZER_WARN_CUTOFF_HZ};
+    static const uint16_t on_ms[4] = {0u, 200u, 150u, 100u};
+    static const uint16_t period_ms[4] = {1u, 1000u, 500u, 250u};
+    uint16_t hz = 0u;
+    unsigned level = reauth_warning_level(now);
+    if (level != warn_level) { warn_level = level; warn_started = now; }
+    bool event = false;
+    if (tone_seq) {                       /* a result sound plays over the warning */
+        uint32_t t = now - tone_started;
+        for (unsigned i = 0; i < tone_len; ++i) {
+            if (t < tone_seq[i].ms) { hz = tone_seq[i].hz; event = true; break; }
+            t -= tone_seq[i].ms;
+        }
+        if (!event) tone_seq = NULL;
+    }
+    if (!event && level && (uint32_t)(now - warn_started) % period_ms[level] < on_ms[level])
+        hz = pitch[level];
+    if (hz != tone_out) { tone_out = hz; vc_platform_tone(hz); }
+}
 
 static bool hex_digit(char c) {
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
@@ -188,6 +232,8 @@ bool vehicle_app_init(void) {
     door_observed = previous_door_closed = false;
 #endif
     door_logged = -1;
+    tone_seq = NULL; tone_len = warn_level = 0u; stop_seen = false;
+    tone_out = 0u; vc_platform_tone(0u);
     sk_set_sync_period(2000u);
     active_mode = select_mode();
     display.mode = active_mode;
@@ -326,6 +372,7 @@ void vehicle_app_step(void) {
     sk_drive_view_t driving; sk_drive_view(&driving);
     display.engine_running=driving.running!=0; display.reauth_warning=driving.warning!=0;
     display.stopped=driving.stopped!=0; display.reauth_left_s=(driving.left_ms+999u)/1000u;
+    update_buzzer(vc_platform_millis());
     refresh_key_display(false);
     now = vc_platform_millis();
     update_control(now);
@@ -379,6 +426,8 @@ void sk_port_actuate(int cmd, int remaining) {
     display.command = cmd; display.remaining = remaining;
     display.actuation_attempted = false; display.actuation = RES_NOT_READY;
     allow_led = true; deny_led = false; allow_started = now;
+    if (cmd == 5) tone_play(tone_off, 3u);   /* authenticated stop or local cutoff */
+    else tone_play(tone_allow, 1u);
     if (cmd==5) { vehicle_app_stop(); vc_platform_log("ENGINE OFF: authenticated stop or local cutoff"); return; }
     if (cmd == 3) {
         vc_platform_log("AUTH ALLOW RETURN: key marked returned; no physical command assigned");
@@ -404,6 +453,7 @@ void sk_port_deny(int cmd, const char *reason) {
     display.reason[2] = '\0';
     display.remaining = -1; display.actuation_attempted = false;
     deny_led = true; allow_led = false; deny_started = vc_platform_millis();
+    tone_play(tone_deny, 3u);
     /* A rejected credential never becomes a movement command or global stop. */
 }
 void sk_port_send_line(const char *line) {

@@ -18,6 +18,10 @@ static TIM_HandleTypeDef vc_htim1;
 static bool motor_ready;
 static uint16_t motor_arr;
 #endif
+#if VC_ENABLE_BUZZER
+static TIM_HandleTypeDef vc_htim3;
+static bool buzzer_ready;
+#endif
 #if VC_ENABLE_RTC || VC_ENABLE_OLED
 I2C_HandleTypeDef vc_hi2c1;
 #endif
@@ -83,7 +87,7 @@ bool board_i2c_recover(void) {
 }
 #endif
 
-#if VC_ENABLE_SERVO || VC_ENABLE_MOTORS
+#if VC_ENABLE_SERVO || VC_ENABLE_MOTORS || VC_ENABLE_BUZZER
 static bool timer_clock(bool apb2, uint32_t *hz) {
     bool timpre = (RCC->DCKCFGR & RCC_DCKCFGR_TIMPRE) != 0u;
     uint32_t pclk = apb2 ? HAL_RCC_GetPCLK2Freq() : HAL_RCC_GetPCLK1Freq();
@@ -132,6 +136,12 @@ void board_kill(void) {
     if (servo_ready) {
         TIM4->CCR3 = 0u;
         TIM4->EGR = TIM_EGR_UG;
+    }
+#endif
+#if VC_ENABLE_BUZZER
+    if (buzzer_ready) {
+        TIM3->CCR1 = 0u;
+        TIM3->EGR = TIM_EGR_UG;
     }
 #endif
 }
@@ -221,6 +231,34 @@ bool board_init(void) {
          GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_AF1_TIM1);
 #endif
 
+#if VC_ENABLE_BUZZER
+    /* 1128 (권기백): passive buzzer on PA6, TIM3_CH1 (AF2), 1 MHz counter;
+     * board_tone() sets the pitch with ARR and a 50% compare. A setup failure
+     * leaves the pin low and only mutes the buzzer; it never blocks auth/lock. */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+    gpio(GPIOA, GPIO_PIN_6, GPIO_MODE_OUTPUT_PP, GPIO_PULLDOWN, 0u);
+    {
+        uint32_t buzzer_clock;
+        PwmSettings buzzer_settings;
+        if (timer_clock(false, &buzzer_clock) &&
+            pwm_servo_settings(buzzer_clock, 1000u, &buzzer_settings)) {
+            __HAL_RCC_TIM3_CLK_ENABLE();
+            __HAL_RCC_TIM3_FORCE_RESET();
+            __HAL_RCC_TIM3_RELEASE_RESET();
+            if (timer_base(&vc_htim3, TIM3, &buzzer_settings) &&
+                timer_channel(&vc_htim3, TIM_CHANNEL_1)) {
+                TIM3->CCR1 = 0u;
+                TIM3->EGR = TIM_EGR_UG;
+                if (HAL_TIM_PWM_Start(&vc_htim3, TIM_CHANNEL_1) == HAL_OK) {
+                    gpio(GPIOA, GPIO_PIN_6, GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_AF2_TIM3);
+                    buzzer_ready = true;
+                }
+            }
+        }
+    }
+#endif
+
 #if VC_ENABLE_RTC || VC_ENABLE_OLED
     if (!i2c_setup()) return fail();
 #endif
@@ -298,6 +336,23 @@ bool board_return_pressed(void) {
     return HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_14) == GPIO_PIN_RESET;
 #else
     return false;
+#endif
+}
+
+void board_tone(uint16_t hz) {
+#if VC_ENABLE_BUZZER
+    if (!buzzer_ready) return;
+    if (failed || hz < 100u || hz > 10000u) {   /* 0 or out of range = silent */
+        TIM3->CCR1 = 0u;
+        TIM3->EGR = TIM_EGR_UG;
+        return;
+    }
+    uint32_t period = 1000000u / hz;            /* 1 MHz counter: 100..10000 ticks */
+    TIM3->ARR = period - 1u;
+    TIM3->CCR1 = period / 2u;
+    TIM3->EGR = TIM_EGR_UG;                     /* restart so a shorter ARR never overruns */
+#else
+    (void)hz;
 #endif
 }
 
