@@ -39,7 +39,7 @@ def main():
                 if len(pending) > 4096: pending.clear()
         threads = [threading.Thread(target=heartbeat, daemon=True), threading.Thread(target=receive, daemon=True)]
         for thread in threads: thread.start()
-        print("TEST_BUILD=1 only. STATUS / LOCK / UNLOCK / SERVO 0|500..2500 / MOTOR -600..600 / STOP / CLEAR / QUIT")
+        print("TEST_BUILD=1 only. STATUS / LOCK / UNLOCK / SERVO 0|500..2500 / MOTOR -600..600 / RTC / RTC SET YYYY-MM-DD HH:MM:SS / STOP / CLEAR / QUIT")
         try:
             while not stop.is_set():
                 command = input("> ").strip().upper()
@@ -50,8 +50,11 @@ def main():
                 if re.fullmatch(r"SERVO [0-9]+", command):
                     pulse = int(command.split()[1])
                     valid = pulse == 0 or 500 <= pulse <= 2500
+                if command == "RTC" or re.fullmatch(r"RTC SET \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", command):
+                    valid = True   # VC_ENABLE_RTC=1 builds only; the board checks the date itself (1128)
                 if not valid:
-                    print("Unknown command, motor outside -600..600, or servo outside 0/500..2500."); continue
+                    print("Unknown command, motor outside -600..600, servo outside 0/500..2500, "
+                          "or RTC SET not YYYY-MM-DD HH:MM:SS."); continue
                 send("TEST "+command)
         except (KeyboardInterrupt, EOFError):
             pass

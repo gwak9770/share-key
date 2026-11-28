@@ -46,6 +46,11 @@ def enc_entries(entries):
     return ",".join(f"{k:08X}:{s:02X}" for k, s in entries) or "-"
 
 
+def clock_key_proof(kid, newkid, ki=None):
+    """시계 오류용 1회 키 요청: 원래 키 보유자만 만들 수 있는 증명 (1128)."""
+    return H(derive(kid) if ki is None else ki, b"CLKISSUE" + u32(VID) + u32(kid) + u32(newkid))
+
+
 def recovery_proof(kid, newkid, nonce, ki=None):
     return H(derive(kid) if ki is None else ki,
              b"RISSUE" + u32(VID) + nonce + u32(kid) + u32(newkid))

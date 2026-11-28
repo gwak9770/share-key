@@ -24,9 +24,67 @@ def log(*a):
     print(time.strftime("%H:%M:%S"), "[서버]", *a, flush=True)
 
 
+EXP_NONE = 0xFFFFFFFF   # 시계 오류용 키: 기간 없음 (00 §6 14, 1128)
+
+
+def _cascade():
+    """원래 키가 취소·반납·만료되면 그 키로 받은 시계 오류용 키도 취소한다(다음 동기화로 차량에 전달)."""
+    changed = False
+    for k in st["keys"].values():
+        parent = st["keys"].get(k.get("parent", ""))
+        if k["state"] == 0 and parent is not None and (parent["state"] != 0 or time.time() > parent["exp"]):
+            k["state"] = 1
+            changed = True
+    if changed:
+        st["ver"] += 1
+        save()
+        log(f"시계 오류용 키 연쇄 취소 → VER {st['ver']}")
+
+
 def _handle(c, p):
     kind = p[0]
     with lock:
+        _cascade()
+        if kind == "CLKISSUE":                    # CLKISSUE|KID|NEWKID|PROOF (1128)
+            if len(p) != 4:
+                return ["ERR", "FF"]
+            try:
+                kid, newkid, proof = int(p[1], 16), int(p[2], 16), bytes.fromhex(p[3])
+            except ValueError:
+                return ["ERR", "FF"]
+            old = st["keys"].get(f"{kid:08X}")
+            if old is None:
+                return ["ERR", "08"]
+            if not eq(clock_key_proof(kid, newkid), proof):
+                return ["ERR", "01"]
+            if old["state"] != 0:
+                return ["ERR", "09" if old["state"] == 2 else "03"]
+            if old["exp"] == EXP_NONE or "parent" in old:
+                return ["ERR", "06"]              # 시계 오류용 키로 또 받을 수 없음
+            if time.time() > old["exp"]:
+                return ["ERR", "04"]              # 서버 시계로도 기간이 끝남 → 정상 거부
+            nk = f"{newkid:08X}"
+            existing = st["keys"].get(nk)
+            if existing is not None and existing.get("parent") != f"{kid:08X}":
+                return ["ERR", "FF"]
+            if existing is None:
+                if len(st["keys"]) >= 16:
+                    return ["ERR", "FF"]
+                for k in st["keys"].values():     # 원래 키당 시계 오류용 키는 하나만 유효
+                    if k.get("parent") == f"{kid:08X}" and k["state"] == 0:
+                        k["state"] = 1
+                existing = {"exp": EXP_NONE, "limit": 1, "sit": old["sit"], "perm": old["perm"],
+                            "state": 0, "parent": f"{kid:08X}"}
+                st["keys"][nk] = existing
+                st["ver"] += 1
+                save()
+                log(f"시계 오류용 1회 키 발급 KID={nk} (원래 {kid:08X}) → VER {st['ver']}")
+            elif existing["state"] != 0:
+                return ["ERR", "03"]
+            e = existing
+            return ["CLKISSUED", nk, f"{e['exp']:08X}", f"{e['limit']:02X}", f"{e['sit']:02X}",
+                    f"{e['perm']:02X}", hx(key_tag(newkid, e["exp"], e["limit"], e["sit"], e["perm"])),
+                    hx(derive(newkid))]
         if kind == "RISSUE":
             if len(p) != 6:
                 return ["RFAIL", "FF"]

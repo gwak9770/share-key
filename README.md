@@ -177,6 +177,7 @@ RTC와 2.42인치 SSD1309 OLED를 PB8/PB9 공용 버스에 연결했습니다. �
 | 통신 | 적용 문서 기준 USART3 PD8/PD9, 115200 8N1. 실제 COM·장치 경로는 매번 확인 |
 | 구동·입력·표시 | 코드·문서 기준 SG90 서보 PD14, 문 입력 PF12, SSD1306용 128×64 OLED 드라이버. 00에는 2.42인치 SSD1309의 과거 실물 보고가 있음. 실제 부품·배선·전원은 장비 담당 확인 필요 |
 | main 기본 설정 | C 정책, 서보·재잠금·큰 글자 OLED 켬. 모터·RTC·반납 버튼·watchdog·A/C 부팅 선택 기본 끔. 잠금/해제 2100/1000μs(11/28 새 SG90 실측, 5회 확인. 이전 2000/1200μs는 예전 서보 값) |
+| RTC B·D 시연 설정 (11/28) | `VC_ENABLE_RTC 1`, `APP_POLICY_MODE 'A'`, `VC_DEMO_MODE_SELECT 1` → 부팅 기본 A, USER로 A→B→C→D. RTC는 한국 시각, 코드에서 UTC로 변환. RTC를 못 읽으면 B·D 기간 키 04, `app.py clock-key`로 받은 시계 오류용 1회 키만 횟수로 허용(00 §6 14). CubeIDE에는 새 파일 `rtc_time.c/h` 추가 필요. PC 시험 통과, 보드 실물 미수행 |
 | Raspberry Pi | 00과 기백님 팀 환경 기준 Pi 5. 현재 OS·중계 설치판·네트워크 설정 미확인 |
 
 핀·클록·전원은 [CubeIDE 적용 안내](firmware/stm32/docs/INTEGRATE_CUBEIDE_KO.md), [배선·시험 안내](firmware/stm32/docs/WIRING_AND_TEST_KO.md)와 실제 보드를 대조합니다. 오래된 [펌웨어 README](firmware/stm32/README_KO.md)에는 OLED 기본 꺼짐 등 초기 설명이 남아 있으므로 현재 `config.h`와 후속 변경 기록을 함께 확인합니다.

@@ -4,6 +4,8 @@
         python app.py net off|on          (시연용 서버↔차량 차단/복구)
 받는 사람: python app.py register 7       (차량에 키 등록)
         python app.py open|start|return 7
+시계 오류: python app.py clock-key 7 --new-kid 70   (B·D에서 차량 RTC 고장 시 1회 키 받기)
+        python app.py register 70
 공격:   python app.py tamper 7             (인증값 1비트 변조)
         python app.py replay 7             (직전 응답 재전송)"""
 import argparse, json, os, time
@@ -108,6 +110,17 @@ def main(argv=None):
     elif a.cmd == "net":
         server(a, "NET", "1" if a.arg == "on" else "0")
         print(f"[시연] 서버↔차량 {'연결' if a.arg == 'on' else '차단'}")
+    elif a.cmd == "clock-key":                  # 1128: B·D 차량 RTC 고장 시 오프라인 1회 키
+        if a.new_kid is None:
+            raise ValueError("--new-kid 필요")
+        k = json.load(open(kpath(kid)))
+        proof = clock_key_proof(kid, a.new_kid, bytes.fromhex(k["ki"]))
+        p = server(a, "CLKISSUE", f"{kid:08X}", f"{a.new_kid:08X}", hx(proof))
+        if p[0] != "CLKISSUED":
+            raise ValueError("시계 오류용 키 발급 거부: " + "|".join(p))
+        os.makedirs(KEYDIR, exist_ok=True)
+        json.dump({"key_line": ["KEY", *p[1:7]], "ki": p[7]}, open(kpath(a.new_kid), "w"))
+        print(f"[주인 앱] KID={a.new_kid:08X} 시계 오류용 1회 키 발급 (원래 {kid:08X}). 다음: register {a.new_kid:X}")
     elif a.cmd == "register":
         k = json.load(open(kpath(kid)))
         c = vehicle(a); p = c.request(*k["key_line"]); c.close()

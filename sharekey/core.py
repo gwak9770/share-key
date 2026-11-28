@@ -7,6 +7,7 @@ from storage import encode_state, decode_state, decode_clock
 
 CLOCK_TOLERANCE_S = 300   # 시계 되돌림 허용 오차 (00 §6 13)
 CLOCK_SAVE_STEP_S = 600   # B·D에서 시계 하한을 주기적으로 저장하는 간격 (하루 최대 144회 쓰기)
+EXP_NONE = 0xFFFFFFFF     # 시계 오류용 키: 기간 없음, B·D에서 RTC를 못 읽을 때만 횟수로 허용 (00 §6 14, 1128)
 
 
 class VehicleCore:
@@ -32,7 +33,7 @@ class VehicleCore:
         self.engine_running = self.engine_warning = self.stopped = self.stop_tracking = False
         self.engine_kid, self.last_auth, self.stop_started = 0, 0, 0
         self.clock_floor = self.clock_seen = 0
-        self.clock_alarm = False
+        self.clock_alarm = self.clock_bad = False
         if storage is not None:
             image = storage.load()
             try:
@@ -49,6 +50,12 @@ class VehicleCore:
         """B·D 기간 판단용 RTC 시각. 본 적 있는 가장 늦은 시각(clock_seen)보다 허용 오차 이상 뒤면
         되돌림으로 보고 None. clock_seen은 저장할 때마다 플래시에 함께 쓴다(00 §6 13)."""
         t = time.time()
+        if int(t) == 0:                      # RTC를 못 읽음 → 기간을 모르므로 04 (1128)
+            if not self.clock_bad:
+                self.clock_bad = True
+                self.log("CLOCK INVALID: period keys denied (04)")
+            return None
+        self.clock_bad = False
         if int(t) + CLOCK_TOLERANCE_S < self.clock_seen:
             if not self.clock_alarm:
                 self.clock_alarm = True
@@ -68,6 +75,13 @@ class VehicleCore:
     def _expired(self, exp):
         t = self._clock_ok()
         return t is None or t > exp
+
+    def _fallback(self, k):
+        """시계 오류용 키(EXP=EXP_NONE): B·D에서 RTC를 못 읽을 때만 C처럼 횟수로 제한해 허용."""
+        return self.use_exp and k["exp"] == EXP_NONE
+
+    def _counted(self, k):
+        return self.use_cnt or self._fallback(k)
 
     def _now(self):
         return int(round(self.clock() * 1000)) & 0xFFFFFFFF
@@ -175,7 +189,10 @@ class VehicleCore:
             return reject("03" if k["state"] == 1 else "09")
         if k["state"] == 3 and cmd in (2, 4):
             return reject("07")
-        if self.use_exp and self._expired(k["exp"]):
+        if self._fallback(k):
+            if int(time.time()) != 0:        # 시계가 정상이면 원래 기간 키를 쓴다
+                return reject("04")
+        elif self.use_exp and self._expired(k["exp"]):
             return reject("04")
         if cmd == 3:
             k["state"] = 2
@@ -186,7 +203,7 @@ class VehicleCore:
                 return reject("07")
             if cmd == 4 and (not self.reauth_enabled or not self.engine_running or self.engine_kid != kid):
                 return reject("07")
-            if self.use_cnt:
+            if self._counted(k):
                 if k["remaining"] <= 0:
                     return reject("05")
                 k["remaining"] -= 1
@@ -201,7 +218,7 @@ class VehicleCore:
         if cmd == 3 and self.engine_running and self.engine_kid == kid:
             self._drive_warn()
         if cmd not in (3, 4):
-            self.actuate(cmd, k["remaining"] if self.use_cnt else None)
+            self.actuate(cmd, k["remaining"] if self._counted(k) else None)
         return "A", "00", k
 
     def _recover(self, p):
@@ -286,7 +303,7 @@ class VehicleCore:
             if kind == "RESP":
                 kid, cmd = int(p[1], 16), int(p[2], 16)
                 res, why, k = self.decide(kid, cmd, bytes.fromhex(p[3]), bytes.fromhex(p[4]))
-                rem = f"{k['remaining']:02X}" if (k and self.use_cnt) else "FF"
+                rem = f"{k['remaining']:02X}" if (k and self._counted(k)) else "FF"
                 if res == "D":
                     self.log(f"✖ KID={p[1]} 거부: {REASON[why]}")
                 return ["RES", p[1], res, why, rem]

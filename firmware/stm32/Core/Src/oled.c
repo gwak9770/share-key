@@ -136,6 +136,7 @@ void oled_status(const Controller *c,const RtcTime *t,const VehicleDisplay *d) {
      * (not yet qualified). FAULT keeps the old "C FAULT"; the cause is line 4. */
     char m=d->mode?d->mode:APP_POLICY_MODE;
     if(c->fault!=FAULT_NONE) snprintf(s,sizeof(s),"%c FAULT",m);
+    else if(d->rtc_bad) snprintf(s,sizeof(s),"%c RTC NG",m);   /* 1128: B/D period keys denied (04) */
     else snprintf(s,sizeof(s),"%c%s DOOR %s",m,TEST_BUILD?"T":"",
                   !c->qualified[0]?"--":c->stable.door_closed?"CL":"OP");
     large_text(0,s);

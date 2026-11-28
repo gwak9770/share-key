@@ -183,7 +183,9 @@ static char select_mode(void) {
     char valid[sizeof(list)];
     size_t n = 0;
     for (size_t i = 0; list[i]; ++i)
-        if ((list[i] == 'A' || list[i] == 'C') && !memchr(valid, list[i], n)) valid[n++] = list[i];
+        if ((list[i] == 'A' || list[i] == 'C' ||
+             (VC_ENABLE_RTC && (list[i] == 'B' || list[i] == 'D'))) && !memchr(valid, list[i], n))
+            valid[n++] = list[i];
     if (n < 2u || !vc_platform_mode_button()) return mode;
     select_cut_line = false;
     size_t at = 0;
@@ -249,6 +251,16 @@ bool vehicle_app_init(void) {
              active_mode, (unsigned)CONTROL_USE_ENDPOINTS, (unsigned)VC_ENABLE_SERVO,
              (unsigned)VC_ENABLE_MOTORS, (unsigned)TEST_BUILD);
     vc_platform_log(msg);
+#if VC_ENABLE_RTC
+    {   /* 1128: one line so the relay window shows whether the RTC is usable. */
+        char rt[24], line[96];
+        if (vc_platform_rtc_text(rt, sizeof(rt)))
+            snprintf(line, sizeof(line), "RTC %s KST UNIX=%lu", rt, (unsigned long)vc_platform_unix_time());
+        else
+            snprintf(line, sizeof(line), "RTC NG: B/D period keys denied (04)");
+        vc_platform_log(line);
+    }
+#endif
     initialized = true;
     return true;
 }
@@ -294,6 +306,25 @@ static void test_command(const char *s, uint32_t now) {
             r = RES_OK;
         }
     }
+#if VC_ENABLE_RTC
+    else if (!strcmp(s, "RTC")) {
+        char rt[24], line[80];
+        if (vc_platform_rtc_text(rt, sizeof(rt)))
+            snprintf(line, sizeof(line), "TEST RTC=%s KST UNIX=%lu", rt, (unsigned long)vc_platform_unix_time());
+        else snprintf(line, sizeof(line), "TEST RTC=NG");
+        vc_platform_log(line); r = RES_OK;
+    }
+    else if (!strncmp(s, "RTC SET ", 8)) {
+        /* Local bench only (USB console, TEST_BUILD). Setting the clock back past the
+         * saved floor makes B/D deny 04 (00 §6 13) until real time passes it again. */
+        r = vc_platform_rtc_set_text(s + 8) ? RES_OK : RES_RANGE;
+        char rt[24], line[80];
+        if (r == RES_OK && vc_platform_rtc_text(rt, sizeof(rt)))
+            snprintf(line, sizeof(line), "TEST RTC SET=%s KST UNIX=%lu", rt, (unsigned long)vc_platform_unix_time());
+        else snprintf(line, sizeof(line), "TEST RTC SET FAILED (format YYYY-MM-DD HH:MM:SS)");
+        vc_platform_log(line);
+    }
+#endif
     char msg[80]; snprintf(msg, sizeof(msg), "TEST RESULT=%s", control_result(r));
     vc_platform_log(msg);
 }
@@ -390,6 +421,9 @@ void vehicle_app_step(void) {
     if (allow_led && (uint32_t)(now - allow_started) >= VC_LED_PULSE_MS) allow_led = false;
     if (deny_led && (uint32_t)(now - deny_started) >= VC_LED_PULSE_MS) deny_led = false;
     vc_platform_indicators(allow_led, server_online, deny_led || controller.fault != FAULT_NONE);
+#if VC_ENABLE_RTC
+    display.rtc_bad = (active_mode == 'B' || active_mode == 'D') && sk_port_unix_time() == 0u;
+#endif
     vc_platform_service(&controller, &display);
 }
 
@@ -513,7 +547,13 @@ void sk_port_log(const char *line) {
     vc_platform_log(line);
 }
 uint32_t sk_port_millis(void) { return vc_platform_millis(); }
-uint32_t sk_port_unix_time(void) { return 0u; } /* A/C release; B/D compile-time blocked. */
+uint32_t sk_port_unix_time(void) {
+#if VC_ENABLE_RTC
+    return vc_platform_unix_time();  /* 1128: RTC (KST) -> UTC seconds; 0 = unknown -> B/D 04 */
+#else
+    return 0u;                       /* no RTC: B/D are blocked at compile time */
+#endif
+}
 void sk_port_random(uint8_t *out, size_t n) { vc_platform_random(out, n); }
 void sk_app_run(void) {
     if (!vehicle_app_init()) vc_platform_panic();

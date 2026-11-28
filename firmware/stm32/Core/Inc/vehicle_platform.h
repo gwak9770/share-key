@@ -8,7 +8,8 @@ typedef struct {
     char policy;                 /* '-' boot / 'W' ready after refill / 'A' / 'D' / 'H' result; 'K' KEYOK / 'N' KEYNG (registration). Not mode or movement. */
     char reason[3];
     char kid[9];                 /* KID of the last KEYOK/KEYNG/RES, for display only. */
-    char mode;                   /* comparison mode chosen at boot (A/C); 0 = APP_POLICY_MODE. */
+    char mode;                   /* comparison mode chosen at boot (A/B/C/D); 0 = APP_POLICY_MODE. */
+    bool rtc_bad;                /* B/D and the RTC is unreadable: period keys denied (04). */
     int remaining, command;
     Result actuation;
     bool actuation_attempted;
@@ -30,4 +31,8 @@ bool vc_platform_return_pressed(void);
 bool vc_platform_mode_button(void);   /* demo mode select (USER button), false if disabled */
 void vc_platform_service(const Controller *c, const VehicleDisplay *display);
 void vc_platform_panic(void);   /* Stops all outputs; hardware implementation never returns. */
+/* 1128: used only when VC_ENABLE_RTC=1. UTC Unix seconds from the RTC, 0 = unknown. */
+uint32_t vc_platform_unix_time(void);
+bool vc_platform_rtc_text(char *out, size_t n);       /* local "YYYY-MM-DD HH:MM:SS" */
+bool vc_platform_rtc_set_text(const char *local);     /* TEST_BUILD bench console only */
 #endif

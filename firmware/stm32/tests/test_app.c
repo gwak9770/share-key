@@ -72,6 +72,18 @@ static bool tone_heard(uint16_t hz) {
     for (size_t i = 0; i < tone_seen_count; ++i) if (tone_seen[i] == hz) return true;
     return false;
 }
+#if VC_ENABLE_RTC
+#include "rtc_time.h"
+static bool stub_rtc_ok;
+static RtcTime stub_rtc;
+uint32_t vc_platform_unix_time(void) { return stub_rtc_ok ? rtc_to_unix(&stub_rtc, VC_RTC_UTC_OFFSET_S) : 0u; }
+bool vc_platform_rtc_text(char *out, size_t n) { return stub_rtc_ok && rtc_format(&stub_rtc, out, n); }
+bool vc_platform_rtc_set_text(const char *local) {
+    RtcTime t;
+    if (!rtc_parse(local, &t)) return false;
+    stub_rtc = t; stub_rtc_ok = true; return true;
+}
+#endif
 static uint32_t mode_hold_ms;                 /* USER held for this long from boot */
 static bool local_user_pressed;
 bool vc_platform_mode_button(void) {
@@ -942,6 +954,30 @@ static void test_servo_calibration_command(void) {
 #endif
 }
 
+static void test_rtc_boot_log_and_bench_commands(void) {
+#if VC_ENABLE_RTC
+    stub_rtc_ok = false;
+    reset_app();
+    assert(has_log("RTC NG: B/D period keys denied (04)"));
+    assert(!vehicle_app_display()->rtc_bad);       /* C mode needs no clock */
+    assert(rtc_parse("2026-11-28 15:00:00", &stub_rtc)); stub_rtc_ok = true;
+    reset_app();
+    assert(has_log("RTC 2026-11-28 15:00:00 KST UNIX=1795845600"));
+#if TEST_BUILD
+    feed_line("TEST RTC");
+    assert(has_log("TEST RTC=2026-11-28 15:00:00 KST UNIX=1795845600"));
+    feed_line("TEST RTC SET 2026-11-28 16:30:05");
+    assert(has_log("TEST RTC SET=2026-11-28 16:30:05 KST UNIX=1795851005") && has_log("TEST RESULT=OK"));
+    log_count = 0;
+    feed_line("TEST RTC SET 2026-13-01 00:00:00");
+    assert(has_log("TEST RTC SET FAILED") && has_log("TEST RESULT=RANGE"));
+    feed_line("TEST RTC");
+    assert(has_log("TEST RTC=2026-11-28 16:30:05 KST UNIX=1795851005"));
+#endif
+    puts("PASS RTC: boot log valid/NG, KST->UTC unix, TEST RTC / RTC SET (bad date rejected)");
+#endif
+}
+
 int main(void) {
     test_live_key_display();
     test_door_state_log();
@@ -960,6 +996,7 @@ int main(void) {
     test_relock_physical_cycles_keep_policy();
     test_key_registration_display();
     test_servo_calibration_command();
+    test_rtc_boot_log_and_bench_commands();
 #if VC_DEMO_MODE_SELECT
     test_demo_mode_select();
     test_mode_select_drops_buffered_rx();

@@ -81,6 +81,10 @@ bool vc_platform_init(void) {
     memset(&rtc_time, 0, sizeof(rtc_time));
     last_rtc = HAL_GetTick() - 1000u; last_retry = HAL_GetTick();
 #endif
+#if VC_ENABLE_RTC
+    (void)rtc_read(&rtc_time);   /* 1128: valid time before sk_init and the boot log */
+    last_rtc = HAL_GetTick();
+#endif
 #if VC_ENABLE_OLED
     oled_init();
 #endif
@@ -93,6 +97,18 @@ void vc_platform_indicators(bool a, bool o, bool d) { board_leds(a, o, d); }
 void vc_platform_tone(uint16_t hz) { board_tone(hz); }
 bool vc_platform_return_pressed(void) { return board_return_pressed(); }
 bool vc_platform_mode_button(void) { return board_mode_button(); }
+#if VC_ENABLE_RTC
+/* 1128 (김채희): cached DS3231 reading (refreshed every 1s in service).
+ * A failed read, OSF (oscillator stopped) or an invalid date leaves valid=false -> 0. */
+uint32_t vc_platform_unix_time(void) { return rtc_to_unix(&rtc_time, VC_RTC_UTC_OFFSET_S); }
+bool vc_platform_rtc_text(char *out, size_t n) { return rtc_format(&rtc_time, out, n); }
+bool vc_platform_rtc_set_text(const char *local) {
+    RtcTime t;
+    if (!rtc_parse(local, &t) || !rtc_set(&t)) return false;
+    last_rtc = HAL_GetTick();
+    return rtc_read(&rtc_time);
+}
+#endif
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *h) {
     if (h != &huart3) return;

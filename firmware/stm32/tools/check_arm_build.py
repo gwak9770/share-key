@@ -33,7 +33,7 @@ def main() -> int:
     parser.add_argument("--cube-root", required=True, type=Path)
     parser.add_argument("--gcc", default="arm-none-eabi-gcc")
     parser.add_argument("--out", type=Path)
-    parser.add_argument("--variant", choices=["default", "all-features", "policy-a", "servo", "demo"], default="default")
+    parser.add_argument("--variant", choices=["default", "all-features", "policy-a", "servo", "demo", "rtc-demo"], default="default")
     args = parser.parse_args()
 
     compiler = shutil.which(args.gcc)
@@ -94,6 +94,9 @@ def main() -> int:
         defines += ["-DVC_BUILD_SERVO_TEST=1"]
     elif args.variant == "demo":   # 1103: presentation build (mode select ON)
         defines += ["-DVC_DEMO_MODE_SELECT=1", "-DVC_STOP_CUTOFF_S=30", "-DVC_DEMO_DRIVE_INPUT=1"]
+    elif args.variant == "rtc-demo":   # 1128: RTC B/D demo build, A default, A->B->C->D select
+        defines += ["-DVC_ENABLE_RTC=1", "-DAPP_POLICY_MODE='A'", "-DVC_DEMO_MODE_SELECT=1",
+                    "-DVC_STOP_CUTOFF_S=30", "-DVC_DEMO_DRIVE_INPUT=1"]
 
     include_dirs = [ROOT / "Core/Inc", ROOT / "vendor/sharekey", ROOT / "build_support",
                     hal / "Inc", hal / "Inc/Legacy", device / "Include", core_include]

@@ -18,7 +18,9 @@ PC 모의:
   T03-revoked  취소 후 동기화되면 문열기 count회 → 모두 거부(03)
   T03-oldsync  취소 전에 받아 둔 서명된 옛 SYNC를 차량에 다시 넣은 뒤 문열기, count회
                → 문열기 모두 거부(03)  (옛 SYNC로 취소가 풀리지 않는지)
-T02의 만료 직전·직후 30회는 B·D 방식과 RTC가 필요해 이 스크립트에서 하지 않는다(미수행으로 기록).
+  T02-exp      (11/28) --only T02E. 만료 시각을 지금+약 1분으로 정한 키로 만료 직전 --exp-count회
+               허용(00), 만료 뒤 --exp-count회 거부(04). 차량이 B 또는 D 방식(RTC 통합판)이어야 한다.
+               차량 RTC와 노트북 시계 차이가 --exp-margin초(기본 5)보다 작아야 한다(시험 콘솔 RTC SET).
 
 주의
   - 실행 1회에 키 3개를 새로 발급·등록한다. 차량은 키를 최대 8개 보관하고 플래시 판은
@@ -43,7 +45,9 @@ ap.add_argument("--count", type=int, default=100, help="T01·T03 각 시험 반�
 ap.add_argument("--t02-rounds", type=int, default=10, help="T02 반복 라운드 수")
 ap.add_argument("--sync", type=float, default=2.0, help="차량 동기화 주기(초). 기다리는 시간 계산용")
 ap.add_argument("--delay", type=float, default=0.2, help="시도 사이 간격(초)")
-ap.add_argument("--only", default="T01,T02,T03", help="돌릴 시험, 예: T01 또는 T01,T03")
+ap.add_argument("--only", default="T01,T02,T03", help="돌릴 시험, 예: T01 또는 T01,T03, 만료 시험은 T02E")
+ap.add_argument("--exp-count", type=int, default=30, help="T02E 만료 직전·직후 각 시도 수")
+ap.add_argument("--exp-margin", type=float, default=5.0, help="T02E 만료 시각 앞뒤 여유(초): 차량 RTC 오차보다 크게")
 ap.add_argument("--kid-base", type=lambda v: int(v, 16), default=None,
                 help="키 번호 시작값(16진수). 기본은 실행 시각으로 정함")
 a = ap.parse_args()
@@ -71,8 +75,8 @@ def vehicle(*f, timeout=3.0):
 
 
 class Key:
-    def __init__(self, kid, limit, perm, hours=24):
-        exp = int(time.time() + hours * 3600)
+    def __init__(self, kid, limit, perm, hours=24, exp=None):
+        exp = int(time.time() + hours * 3600) if exp is None else int(exp)
         p = server("ISSUE", f"{kid:08X}", f"{exp:08X}", f"{limit:02X}", "02", f"{perm:02X}")
         if p[0] != "ISSUED":
             raise SystemExit(f"발급 실패 KID={kid:08X}: {p}")
@@ -161,6 +165,38 @@ def t02(base):
     return k
 
 
+def t02e(base):
+    """만료 직전·직후 (B·D + RTC). 직전은 만료 --exp-margin초 전까지, 직후는 --exp-margin초 뒤부터."""
+    n, margin = a.exp_count, a.exp_margin
+    lead = margin + n * (a.delay + 0.6) + 10        # 직전 시도를 다 마칠 시간
+    exp = int(time.time() + lead)
+    k = Key(base + 3, 4, 0x03, exp=exp)
+    print(f"T02E 키 {k.kid:08X} 만료 {time.strftime('%H:%M:%S', time.localtime(exp))} (여유 {margin}초)", flush=True)
+    before, late = [], 0
+    t0 = time.time()
+    before.append(k.use(1))                          # 첫 시도로 1회 걸리는 시간을 재서
+    step = time.time() - t0 + a.delay
+    time.sleep(max(0.0, exp - margin - (n - 1) * step * 1.3 - time.time()))   # 끝이 만료 직전에 오게 기다림
+    for _ in range(n - 1):
+        if time.time() > exp - margin:
+            late += 1                                # 시간 안에 못 한 시도: 결과에서 실패로 센다
+            before.append(("?", "late"))
+            continue
+        before.append(k.use(1))
+        time.sleep(a.delay)
+    last_before = exp - time.time()
+    time.sleep(max(0.0, exp + margin - time.time()))
+    first_after = time.time() - exp
+    after = []
+    for _ in range(n):
+        after.append(k.use(1))
+        time.sleep(a.delay)
+    check(f"T02-exp 만료 직전 (만료 {last_before:.0f}초 전까지)", ("A", "00"), before)
+    check(f"T02-exp 만료 직후 (만료 {first_after:.0f}초 뒤부터)", ("D", "04"), after)
+    if late:
+        print(f"  만료 직전 시도 {late}회는 시간 안에 못 함 → --exp-count나 --delay를 줄일 것", flush=True)
+
+
 def t03(base, k=None):
     k = k or Key(base + 2, 4, 0x03)
     # 취소 전 서명된 SYNC를 받아 둔다 (그 키가 유효로 적힌 옛 응답)
@@ -185,13 +221,15 @@ def main():
     base = a.kid_base if a.kid_base is not None else (0x7E000000 | (int(time.time()) & 0xFFFF) << 4)
     only = {s.strip().upper() for s in a.only.split(",")}
     started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-    print(f"시작 {started}  vehicle={a.vehicle} server={a.server} count={a.count} KID {base:08X}~{base + 2:08X}",
+    print(f"시작 {started}  vehicle={a.vehicle} server={a.server} count={a.count} KID {base:08X}~{base + 3:08X}",
           flush=True)
     try:
         server("NET", "1")
         if "T01" in only:
             t01(base)
         k = t02(base) if "T02" in only else None
+        if "T02E" in only:
+            t02e(base)
         if "T03" in only:
             t03(base, k)
     except (OSError, ConnectionError, socket.timeout) as e:
@@ -207,8 +245,8 @@ def main():
     for name, exp, good, n, wrong, _ in results:
         print(f"| {name} | {exp} | {good}/{n} | {'-' if wrong is None else wrong} | "
               f"{'PASS' if good == n else 'FAIL'} |")
-    if "T02" in only:
-        print("| T02 만료 직전·직후 30회 | B·D + RTC 필요 | - | - | 미수행 |")
+    if "T02" in only and "T02E" not in only:
+        print("| T02 만료 직전·직후 | --only T02E (B·D + RTC) | - | - | 미수행 |")
     sys.exit(0 if results and all(g == n for _, _, g, n, _, _ in results) else 1)
 
 
