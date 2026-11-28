@@ -124,7 +124,7 @@ OLED는 `REAUTH`, `ENG DRIVE/STOP`을 표시하고 웹은 조회 전용 `DSTATUS
 | `firmware/stm32/docs` | 버전별 변경·검증·적용 문서와 patch. 모든 기록이 현재판에 해당하지는 않음 |
 | `firmware/stm32/vendor/sharekey/SOURCE_MANIFEST.json` | 인증·저장 소스의 출처·Git 원본 SHA-256. 소스 사본 폴더가 아님 |
 | `sharekey/` | 서버(`server.py`)·앱(`app.py`)·Pi 중계(`pi_relay.py`)·웹 화면(`web_app.py`)·Python 판단 기준(`core.py`)·모의 차량·자동 시연(`demo.py`). 실행법은 [`sharekey/README.txt`](sharekey/README.txt) |
-| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.29. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
+| `docs/00_master_design.md` | 권기백 관리 설계 기준 v0.3.30. v0.3.12는 PR #2 원문 그대로 반입, v0.3.13에서 §4·§9·§12에 저장소 기준 반영. 과거 결과·계획과 현재 적용 상태를 구분 |
 | `docs/01_report_template.md` | 기백님 01 작업 보고 양식에 버전·시간·단계별 검증 기록을 추가 |
 | `docs/history` | 곽동규의 과거 Pi 모의시험·R1 검토·팀 전달 기록 |
 | `docs/IMPORT_MANIFEST.json`, `firmware/stm32/PACKAGE_MANIFEST.json` | 자료 반입·패키지 시점의 출처와 해시. 현재 전체 코드의 검증표로 사용하지 않음 |
@@ -381,7 +381,7 @@ PowerShell에서 수신한 원본 ZIP은 `Get-FileHash -LiteralPath '<실제 ZIP
 
 | 문서 | 역할 / 관리·변경 절차 |
 |---|---|
-| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.29, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
+| [00 전체 설계](docs/00_master_design.md) | 설계 기준 v0.3.30, 관리 권기백. 설계·코드는 같은 작업 브랜치에서 함께 변경하고 main 최종 병합 때만 사용자 허락 |
 | [02 최종 로드맵](docs/02_final_roadmap.md) | 최종발표까지 할 일·담당·마감·완료 기준 |
 | [AGENTS](AGENTS.md) / [CLAUDE](CLAUDE.md) | 공통 작업 규칙은 AGENTS 한 곳. CLAUDE는 import 연결. 공통 규칙 변경은 PR로 처리하고 main 병합 때 사용자 확인 |
 | [CONTRIBUTING](CONTRIBUTING.md) | 팀원의 브랜치·검증·업로드·병합 절차 |
